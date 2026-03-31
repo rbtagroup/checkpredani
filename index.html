@@ -304,6 +304,18 @@
   
   <div id="toast-container"></div>
 
+  <!-- Custom Dialog Modal (Nahrazuje nefunkční window.confirm a window.prompt) -->
+  <div id="dialogOverlay" class="detailOverlay hidden" style="z-index: 10001;">
+    <div class="detailCard" style="width: min(340px, 95%); padding: 24px 20px; text-align: center;">
+      <div id="dialogMessage" style="font-size: 15px; font-weight: 600; margin-bottom: 20px; color: #fff; line-height: 1.4;"></div>
+      <input type="text" id="dialogInput" class="hidden" style="margin-bottom: 20px; text-align: center; font-weight: bold; text-transform: uppercase;" placeholder="Napište text...">
+      <div style="display: flex; gap: 10px;">
+        <button class="btn secondary" id="dialogCancel" style="flex: 1;">Zrušit</button>
+        <button class="btn dangerBtn" id="dialogConfirm" style="flex: 1;">Potvrdit</button>
+      </div>
+    </div>
+  </div>
+
   <div class="app">
     <header class="topbar">
       <div>
@@ -451,6 +463,42 @@
         navigator.serviceWorker.register('./sw.js').catch(() => {
           console.log('Service Worker běží v lokálním/náhledovém režimu (nebo chybí sw.js).');
         });
+      });
+    }
+
+    // --- Vlastní dialogová okna (Nahrazují zablokované confirm/prompt) ---
+    function showDialog(message, type, callback) {
+      const overlay = document.getElementById('dialogOverlay');
+      const msgEl = document.getElementById('dialogMessage');
+      const inputEl = document.getElementById('dialogInput');
+      const btnConfirm = document.getElementById('dialogConfirm');
+      const btnCancel = document.getElementById('dialogCancel');
+
+      msgEl.innerHTML = message;
+      overlay.classList.remove('hidden');
+
+      if (type === 'prompt') {
+          inputEl.classList.remove('hidden');
+          inputEl.value = '';
+          setTimeout(() => inputEl.focus(), 100);
+      } else {
+          inputEl.classList.add('hidden');
+      }
+
+      // Odstranění starých event listenerů klonováním tlačítek
+      const newConfirm = btnConfirm.cloneNode(true);
+      const newCancel = btnCancel.cloneNode(true);
+      btnConfirm.replaceWith(newConfirm);
+      btnCancel.replaceWith(newCancel);
+
+      newCancel.addEventListener('click', () => {
+          overlay.classList.add('hidden');
+          callback(type === 'prompt' ? null : false);
+      });
+
+      newConfirm.addEventListener('click', () => {
+          overlay.classList.add('hidden');
+          callback(type === 'prompt' ? inputEl.value.trim().toUpperCase() : true);
       });
     }
 
@@ -941,15 +989,18 @@
         if(e.target.classList.contains('detailOverlay')) history.back();
       });
 
+      // ZDE je použito nové vlastní okno pro potvrzení
       document.getElementById('deleteRecordBtn').addEventListener('click', () => {
-          if(confirm('Opravdu chcete tento záznam trvale smazat?')) {
-              let hist = getHistory();
-              hist = hist.filter(x => x.id !== id);
-              setHistory(hist);
-              renderHistory();
-              history.back();
-              showToast('Záznam smazán.', 'success');
-          }
+          showDialog('Opravdu chcete tento záznam trvale smazat?', 'confirm', (res) => {
+              if (res) {
+                  let hist = getHistory();
+                  hist = hist.filter(x => x.id !== id);
+                  setHistory(hist);
+                  renderHistory();
+                  history.back();
+                  showToast('Záznam smazán.', 'success');
+              }
+          });
       });
     }
 
@@ -1122,25 +1173,28 @@
     }
 
     function importJSON(){ 
-      if(confirm('Import přepíše aktuální historii v zařízení. Pokračovat?')) {
-        byId('importFile').click(); 
-      }
+      showDialog('Import přepíše aktuální historii v zařízení.<br>Pokračovat?', 'confirm', (res) => {
+          if (res) {
+              byId('importFile').click(); 
+          }
+      });
     }
 
     function clearHistory() {
       const history = getHistory();
       if(history.length === 0) return showToast('Paměť je již prázdná.');
       
-      const pass = prompt('Uvolní se paměť, zůstane 5 posledních záznamů.\nPro potvrzení napište: SMAZAT');
-      if(pass === 'SMAZAT') {
-        const kept = history.slice(0, 5);
-        if(setHistory(kept)) {
-            renderHistory();
-            showToast('Paměť uvolněna.', 'success');
-        }
-      } else if(pass !== null) {
-        showToast('Chybné heslo.');
-      }
+      showDialog('Uvolní se paměť, zůstane 5 posledních záznamů.<br><br>Pro potvrzení napište heslo:<br><strong>SMAZAT</strong>', 'prompt', (pass) => {
+          if (pass === 'SMAZAT') {
+              const kept = history.slice(0, 5);
+              if(setHistory(kept)) {
+                  renderHistory();
+                  showToast('Paměť uvolněna.', 'success');
+              }
+          } else if(pass !== null) {
+              showToast('Chybné heslo.');
+          }
+      });
     }
 
     function toggleManagerMode(){
@@ -1232,7 +1286,9 @@
       byId('clearHistoryBtn').addEventListener('click', clearHistory);
       
       byId('resetBtn').addEventListener('click', () => {
-          if(confirm('Vymazat vyplňovaný formulář?')) resetForm(false);
+          showDialog('Opravdu chcete vymazat právě vyplňovaný formulář?', 'confirm', (res) => {
+              if (res) resetForm(false);
+          });
       });
       
       byId('managerMode').addEventListener('change', toggleManagerMode);
