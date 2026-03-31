@@ -128,6 +128,7 @@
       box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.15), inset 0 2px 4px rgba(0,0,0,0.1); 
       background: rgba(0, 0, 0, 0.4);
     }
+    input:disabled, select:disabled, textarea:disabled { opacity: 0.6; cursor: not-allowed; }
 
     /* Checklist Items - Zhutněné */
     .item {
@@ -193,6 +194,7 @@
       font-family: inherit;
     }
     .btn:active { transform: scale(0.96); }
+    .btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
     .primary { 
       background: var(--gold-grad); color: #000; font-weight: 700;
       box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); 
@@ -225,7 +227,11 @@
 
     /* Photos */
     .photoBtn { padding: 8px 12px; margin-top: 8px; width: 100%; border-style: dashed; font-size: 12px;}
-    .photoPreview { display: block; max-width: 100%; height: 120px; margin-top: 8px; border-radius: 8px; border: 1px solid var(--card-border); object-fit: cover; }
+    .photoPreview { 
+      display: block; width: 100%; height: auto; max-height: 200px; 
+      aspect-ratio: 16/9; margin-top: 8px; border-radius: 8px; 
+      border: 1px solid var(--card-border); object-fit: cover; 
+    }
     
     /* Meta rows */
     .metaRow { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;}
@@ -307,9 +313,9 @@
   
   <div id="toast-container"></div>
 
-  <!-- Bezpečný prohlížeč obrázků -->
-  <div id="imageViewerOverlay" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 10002; display: flex; align-items: center; justify-content: center; padding: 15px; cursor: zoom-out;">
-    <img id="imageViewerImg" src="" style="max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+  <!-- Bezpečný prohlížeč obrázků (roztáhnutý přes celou obrazovku) -->
+  <div id="imageViewerOverlay" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10002; display: flex; align-items: center; justify-content: center; padding: 0; cursor: zoom-out;">
+    <img id="imageViewerImg" src="" style="width: 100%; height: 100%; object-fit: contain;">
   </div>
 
   <!-- Custom Dialog Modal -->
@@ -328,7 +334,7 @@
     <header class="topbar">
       <div>
         <h1 class="gold-text" id="appTitle" style="cursor: pointer; user-select: none; -webkit-user-select: none;" title="Klikněte 5x pro manažerský režim">RB Taxi</h1>
-        <div class="sub">Předávací protokol <span class="ver">v33</span> <span id="managerIcon" class="hidden" title="Manažerský režim aktivní">🔓</span></div>
+        <div class="sub">Předávací protokol <span class="ver">v35</span> <span id="managerIcon" class="hidden" title="Manažerský režim aktivní">🔓</span></div>
       </div>
       <div id="vehicleStatus" class="status ok">STAV VOZU: OK</div>
     </header>
@@ -386,9 +392,13 @@
             <option value="Nízký stav">Nízký stav (rezerva)</option>
           </select>
         </label>
-        <label class="field" style="grid-column: span 2;">
+        <label class="field">
           <span>Stav tachometru (km)</span>
           <input id="km" type="number" inputmode="numeric" placeholder="např. 123456">
+        </label>
+        <label class="field" style="grid-column: 1 / -1; margin-top: 8px;">
+          <span>Poznámka řidiče k předání</span>
+          <textarea id="driverNote" placeholder="Cokoliv dalšího, co by měl vědět kolega nebo manažer..."></textarea>
         </label>
       </div>
     </section>
@@ -578,6 +588,7 @@
 
     let currentPhotoItem = null;
     let sigCanvas, sigCtx, isDrawing = false, hasSignature = false;
+    let _isRestoringDraft = false;
 
     function byId(id){ return document.getElementById(id); }
     function escapeHtml(s=''){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -712,6 +723,7 @@
 
       updateSummary();
       toggleManagerMode();
+      saveDraft();
     }
 
     function pickPhoto(btn){
@@ -720,7 +732,7 @@
       byId('photoPicker').click();
     }
 
-    function compressImage(file, maxW=800, quality=0.6){
+    function compressImage(file, maxW=800, quality=0.7){
       return new Promise((resolve, reject) => {
         const fr = new FileReader();
         fr.onload = () => {
@@ -731,7 +743,27 @@
             canvas.width = Math.round(img.width * ratio);
             canvas.height = Math.round(img.height * ratio);
             const ctx = canvas.getContext('2d');
+            
+            // Nakreslení původní fotky
             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            
+            // Přidání chytrého vodoznaku s datem a časem
+            const now = new Date().toLocaleString('cs-CZ');
+            const fontSize = Math.max(16, Math.round(canvas.width * 0.035));
+            ctx.font = `bold ${fontSize}px sans-serif`;
+            const textWidth = ctx.measureText(now).width;
+            const pad = fontSize * 0.5;
+
+            // Poloprůhledné pozadí pod textem pro čitelnost
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(canvas.width - textWidth - pad * 2, canvas.height - fontSize - pad * 2, textWidth + pad * 2, fontSize + pad * 2);
+
+            // Žlutý text
+            ctx.fillStyle = '#facc15';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(now, canvas.width - pad, canvas.height - pad);
+
             resolve(canvas.toDataURL('image/jpeg', quality));
           };
           img.onerror = reject;
@@ -805,9 +837,104 @@
       }
     }
 
-    function save(){
+    // --- Autosave (Koncept) Logika ---
+    function saveDraft() {
+        if (_isRestoringDraft) return;
+        try {
+            const draft = {
+                spz: byId('spz').value,
+                driver: byId('driver').value,
+                taken: byId('taken').value,
+                fuel: byId('fuel').value,
+                km: byId('km').value,
+                driverNote: byId('driverNote').value,
+                items: getItems()
+            };
+            localStorage.setItem('rb_draft', JSON.stringify(draft));
+        } catch (e) {
+            console.warn('Uložení konceptu selhalo (pravděpodobně kvůli velké fotce).', e);
+        }
+    }
+
+    function loadDraft() {
+        try {
+            const draftStr = localStorage.getItem('rb_draft');
+            if (!draftStr) return false;
+            const draft = JSON.parse(draftStr);
+
+            if (draft.spz) byId('spz').value = draft.spz;
+            if (draft.driver) byId('driver').value = draft.driver;
+            if (draft.taken) byId('taken').value = draft.taken;
+            if (draft.fuel) byId('fuel').value = draft.fuel;
+            if (draft.km) byId('km').value = draft.km;
+            if (draft.driverNote) byId('driverNote').value = draft.driverNote;
+
+            if (draft.items && Array.isArray(draft.items)) {
+                _isRestoringDraft = true;
+                draft.items.forEach(dItem => {
+                    const el = document.querySelector(`.app .item[data-id="${dItem.id}"]`);
+                    if (el && dItem.state) {
+                        const btn = el.querySelector(dItem.state === 'ok' ? '.okBtn' : '.nokBtn');
+                        if (btn) {
+                            setState(btn, dItem.state);
+                            if (dItem.state === 'nok') {
+                                const noteEl = el.querySelector('.note');
+                                if(noteEl) noteEl.value = dItem.note || '';
+                                const typeEl = el.querySelector('.issueType');
+                                if(typeEl) typeEl.value = dItem.type || '';
+                                const whoEl = el.querySelector('.issueWho');
+                                if(whoEl) whoEl.value = dItem.who || '';
+
+                                if (dItem.photo) {
+                                    el.dataset.photo = dItem.photo;
+                                    const imgEl = el.querySelector('.photoPreview');
+                                    if (imgEl) {
+                                        imgEl.src = dItem.photo;
+                                        imgEl.classList.remove('hidden');
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+                _isRestoringDraft = false;
+            }
+            return true;
+        } catch (e) {
+            console.error("Načtení konceptu selhalo", e);
+            return false;
+        }
+    }
+
+    // --- Zjištění GPS Polohy ---
+    function getGPS() {
+        return new Promise((resolve) => {
+            if (!navigator.geolocation) {
+                console.warn("Geolokace není podporována.");
+                return resolve(null);
+            }
+            navigator.geolocation.getCurrentPosition(
+                (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+                (err) => {
+                    console.warn("Geolokace selhala: ", err);
+                    resolve(null);
+                },
+                { enableHighAccuracy: false, timeout: 6000, maximumAge: 60000 }
+            );
+        });
+    }
+
+    async function save(){
       const items = getItems();
       if(!validate(items)) return;
+
+      const saveBtn = byId('saveBtn');
+      const originalBtnHtml = saveBtn.innerHTML;
+      saveBtn.innerHTML = '⏳ Zjišťuji GPS a Ukládám...';
+      saveBtn.disabled = true;
+
+      // Získání GPS před uložením
+      const coords = await getGPS();
 
       const rec = {
         id: Date.now().toString(),
@@ -817,8 +944,10 @@
         confirmed: byId('confirmState').checked,
         fuel: byId('fuel').value,
         km: byId('km').value.trim(),
+        driverNote: byId('driverNote').value.trim(),
         signature: hasSignature ? sigCanvas.toDataURL('image/png', 0.5) : '', 
         items,
+        gps: coords, // Přidáno do záznamu
         status: items.some(i => i.state === 'nok') ? 'NEOK' : 'OK',
         criticalStop: items.some(i => i.state === 'nok' && i.critical),
         time: new Date().toISOString()
@@ -831,6 +960,7 @@
         const carry = items.filter(i => i.state === 'nok');
         localStorage.setItem('carry_' + rec.spz, JSON.stringify(carry));
         localStorage.setItem('rb_last_driver', rec.driver);
+        localStorage.removeItem('rb_draft'); // Vymazání konceptu po uložení
 
         renderHistory();
         updateSummary();
@@ -843,6 +973,9 @@
         }
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
+
+      saveBtn.innerHTML = originalBtnHtml;
+      saveBtn.disabled = false;
     }
 
     function loadCarryover(){
@@ -893,6 +1026,7 @@
 
       updateSummary();
       toggleManagerMode();
+      saveDraft(); // Aktualizace konceptu po načtení minulých závad
       
       if(issues.length > 0) {
         showToast(`Načteno ${issues.length} dřívějších závad.`, 'error');
@@ -992,7 +1126,8 @@
         <div style="display:grid; gap: 6px; margin-bottom: 16px;">
             <div class="detailRow"><strong>Stav tachometru:</strong> ${tachoStr}</div>
             <div class="detailRow"><strong>Stav paliva:</strong> ${escapeHtml(rec.fuel || '-')}</div>
-            ${rec.rideOk ? `<div class="detailRow"><strong>Jízda OK (Starý formát):</strong> <span style="color:${rec.rideOk==='ok'?'var(--green)':'var(--red)'}; font-weight:bold;">${rec.rideOk === 'nok' ? 'NE' : 'ANO'}</span></div>` : ''}
+            ${rec.gps ? `<div class="detailRow"><strong>Lokace uložení:</strong> <a href="https://maps.google.com/?q=${rec.gps.lat},${rec.gps.lng}" target="_blank" style="color:var(--gold); text-decoration:underline;">📍 Zobrazit na mapě</a></div>` : ''}
+            ${rec.driverNote ? `<div class="detailRow" style="background:rgba(245,158,11,0.1); border-color:rgba(245,158,11,0.3);"><strong style="color:var(--orange);">Poznámka řidiče:</strong><br>${escapeHtml(rec.driverNote)}</div>` : ''}
             ${rec.rideIssue ? `<div class="detailRow" style="background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3);"><strong style="color:#fca5a5;">Problém ze směny:</strong><br>${escapeHtml(rec.rideIssue)}</div>` : ''}
         </div>
 
@@ -1036,16 +1171,16 @@
       });
     }
 
-    // --- FUNKCE PRO GENEROVÁNÍ KOMPAKTNÍHO OBRÁZKU SMĚNY ---
+    // --- FUNKCE PRO GENEROVÁNÍ OBRÁZKU SMĚNY (Mobilní optimalizace) ---
     function createExportDOM(rec) {
       const wrap = document.createElement('div');
       wrap.style.position = 'absolute';
       wrap.style.left = '-9999px';
       wrap.style.top = '0';
-      wrap.style.width = '700px'; 
+      wrap.style.width = '600px'; 
       wrap.style.backgroundColor = '#0f172a';
       wrap.style.color = '#f8fafc';
-      wrap.style.padding = '25px'; 
+      wrap.style.padding = '30px'; 
       wrap.style.fontFamily = 'Arial, sans-serif'; 
       wrap.style.boxSizing = 'border-box';
       wrap.style.zIndex = '-100';
@@ -1057,61 +1192,64 @@
       let tachoStr = rec.km ? escapeHtml(rec.km) + ' km' : (rec.kmStart ? escapeHtml(rec.kmStart) + ' ➔ ' + escapeHtml(rec.kmEnd) + ' km' : '-');
 
       wrap.innerHTML = `
-        <div style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
-          <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #fff;">Předávací <span style="color: #facc15;">protokol</span></h1>
-          <div style="font-size: 14px; color: #94a3b8;">${dt}</div>
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 20px; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: flex-end;">
+          <h1 style="margin: 0; font-size: 32px; font-weight: bold; color: #fff;">Předávací <span style="color: #facc15;">protokol</span></h1>
+          <div style="font-size: 16px; color: #94a3b8; font-weight: bold;">${dt}</div>
         </div>
 
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #1e293b; padding: 16px; border-radius: 12px; margin-bottom: 20px; font-size: 14px; border: 1px solid rgba(255,255,255,0.05);">
-          <div><strong style="color: #94a3b8;">SPZ:</strong> <span style="font-size: 18px; font-weight: bold; color: #fff;">${escapeHtml(rec.spz)}</span></div>
-          <div><strong style="color: #94a3b8;">Stav vozu:</strong> <span style="color: ${statusColor}; font-weight: bold; font-size: 16px;">${escapeHtml(rec.criticalStop ? 'STOP - KRITICKÁ ZÁVADA' : rec.status)}</span></div>
-          <div><strong style="color: #94a3b8;">Přebírající řidič:</strong> ${escapeHtml(rec.driver)}</div>
-          <div><strong style="color: #94a3b8;">Převzato po:</strong> ${escapeHtml(rec.taken)}</div>
-          <div><strong style="color: #94a3b8;">Stav tachometru:</strong> ${tachoStr}</div>
-          <div><strong style="color: #94a3b8;">Stav paliva:</strong> ${escapeHtml(rec.fuel || '-')}</div>
-          ${rec.rideIssue ? `<div style="grid-column: 1 / -1;"><strong style="color: #ef4444;">Problém ze směny:</strong> <span style="color: #f8fafc;">${escapeHtml(rec.rideIssue)}</span></div>` : ''}
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 25px; font-size: 16px; border: 1px solid rgba(255,255,255,0.05);">
+          <div><strong style="color: #94a3b8; display: block; font-size: 14px; margin-bottom: 4px;">SPZ Vozidla</strong> <span style="font-size: 22px; font-weight: bold; color: #fff;">${escapeHtml(rec.spz)}</span></div>
+          <div><strong style="color: #94a3b8; display: block; font-size: 14px; margin-bottom: 4px;">Stav vozu</strong> <span style="color: ${statusColor}; font-weight: bold; font-size: 18px;">${escapeHtml(rec.criticalStop ? 'STOP - ZÁVADA' : rec.status)}</span></div>
+          <div><strong style="color: #94a3b8;">Řidič:</strong><br>${escapeHtml(rec.driver)}</div>
+          <div><strong style="color: #94a3b8;">Převzato po:</strong><br>${escapeHtml(rec.taken)}</div>
+          <div><strong style="color: #94a3b8;">Tachometr:</strong><br>${tachoStr}</div>
+          <div><strong style="color: #94a3b8;">Palivo:</strong><br>${escapeHtml(rec.fuel || '-')}</div>
+          ${rec.gps ? `<div><strong style="color: #94a3b8;">GPS Lokace uložení:</strong><br>${rec.gps.lat.toFixed(4)}, ${rec.gps.lng.toFixed(4)}</div>` : ''}
+          
+          ${rec.driverNote ? `<div style="grid-column: 1 / -1; background: rgba(245,158,11,0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(245,158,11,0.3); margin-top: 10px;"><strong style="color: #f59e0b; display: block; margin-bottom: 4px;">Poznámka řidiče:</strong> <span style="color: #fff; font-style: italic;">"${escapeHtml(rec.driverNote)}"</span></div>` : ''}
+          ${rec.rideIssue ? `<div style="grid-column: 1 / -1; background: rgba(239,68,68,0.1); padding: 12px; border-radius: 8px; border: 1px solid rgba(239,68,68,0.3); margin-top: 10px;"><strong style="color: #ef4444; display: block; margin-bottom: 4px;">Problém ze směny:</strong> <span style="color: #fff;">${escapeHtml(rec.rideIssue)}</span></div>` : ''}
         </div>
 
         ${nokOnly.length > 0 ? `
-        <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 16px; border-radius: 12px; margin-bottom: 20px;">
-          <h2 style="margin: 0 0 15px 0; color: #fca5a5; font-size: 18px;">Evidované závady</h2>
+        <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 20px; border-radius: 12px; margin-bottom: 25px;">
+          <h2 style="margin: 0 0 15px 0; color: #fca5a5; font-size: 20px;">Evidované závady</h2>
           ${nokOnly.map(i => `
-            <div style="margin-bottom: 12px; font-size: 14px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px;">
-              <strong style="color: #fff; font-size: 15px;">• ${escapeHtml(i.label)}</strong>
-              ${i.carried ? `<span style="background: #f59e0b; color: #000; padding: 2px 8px; border-radius: 999px; font-size: 11px; margin-left: 8px; font-weight: bold;">Z MINULA</span>` : ''}
+            <div style="margin-bottom: 12px; font-size: 15px; background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px;">
+              <strong style="color: #fff; font-size: 17px;">• ${escapeHtml(i.label)}</strong>
+              ${i.carried ? `<span style="background: #f59e0b; color: #000; padding: 3px 10px; border-radius: 999px; font-size: 12px; margin-left: 10px; font-weight: bold;">Z MINULA</span>` : ''}
               <br>
-              <div style="color: #cbd5e1; margin-top: 6px;">Detail: ${escapeHtml(i.note || 'bez popisu')}</div>
-              ${i.group === 'visual' ? `<div style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Typ: ${escapeHtml(i.type || '-')} | Vznik: ${escapeHtml(i.who || '-')}</div>` : ''}
-              ${i.photo ? `<div style="margin-top: 8px;"><img src="${i.photo}" style="max-width: 250px; max-height: 150px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);"></div>` : ''}
+              <div style="color: #cbd5e1; margin-top: 8px; line-height: 1.4;">Detail: ${escapeHtml(i.note || 'bez popisu')}</div>
+              ${i.group === 'visual' ? `<div style="color: #94a3b8; font-size: 14px; margin-top: 6px;">Typ: ${escapeHtml(i.type || '-')} | Vznik: ${escapeHtml(i.who || '-')}</div>` : ''}
+              ${i.photo ? `<div style="margin-top: 12px;"><img src="${i.photo}" style="max-width: 100%; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);"></div>` : ''}
             </div>
           `).join('')}
         </div>
         ` : `
-        <div style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); padding: 15px; border-radius: 12px; margin-bottom: 20px; color: #86efac; font-weight: bold; font-size: 15px; text-align: center;">
+        <div style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); padding: 20px; border-radius: 12px; margin-bottom: 25px; color: #86efac; font-weight: bold; font-size: 18px; text-align: center;">
           Vozidlo je bez závad (Vše OK)
         </div>
         `}
 
-        <div style="margin-bottom: 20px; background: #1e293b; padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-          <h2 style="margin: 0 0 15px 0; font-size: 18px; color: #fff;">Předávací checklist</h2>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; color: #cbd5e1;">
+        <div style="margin-bottom: 25px; background: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+          <h2 style="margin: 0 0 15px 0; font-size: 20px; color: #fff;">Předávací checklist</h2>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 15px; color: #cbd5e1;">
             ${(rec.items||[]).map(i => `
-              <div style="display: flex; gap: 8px; align-items: flex-start;">
-                <span style="color: ${i.state==='ok'?'#22c55e':'#ef4444'}; font-weight: bold; font-size: 15px;">${i.state==='ok'?'✓':'✕'}</span>
+              <div style="display: flex; gap: 10px; align-items: flex-start;">
+                <span style="color: ${i.state==='ok'?'#22c55e':'#ef4444'}; font-weight: bold; font-size: 17px;">${i.state==='ok'?'✓':'✕'}</span>
                 <span>${escapeHtml(i.label)}</span>
               </div>
             `).join('')}
           </div>
         </div>
 
-        <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #020617; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-          <div style="font-size: 15px; line-height: 1.6;">
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 20px; background: #020617; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+          <div style="font-size: 16px; line-height: 1.6;">
             <strong style="color: #94a3b8;">Zkontroloval a převzal v tomto stavu:</strong> <span style="color:${rec.confirmed?'#22c55e':'#ef4444'}; font-weight:bold;">${rec.confirmed ? 'ANO' : 'NE'}</span><br>
           </div>
           ${rec.signature ? `
           <div style="text-align: center;">
-            <div style="color: #94a3b8; font-size: 12px; margin-bottom: 6px;">Podpis řidiče:</div>
-            <img src="${rec.signature}" style="height: 60px; max-width: 200px; object-fit: contain; background: rgba(255,255,255,0.9); padding: 8px; border-radius: 8px;">
+            <div style="color: #94a3b8; font-size: 14px; margin-bottom: 6px;">Podpis řidiče:</div>
+            <img src="${rec.signature}" style="height: 80px; max-width: 200px; object-fit: contain; background: rgba(255,255,255,0.9); padding: 8px; border-radius: 8px;">
           </div>
           ` : ''}
         </div>
@@ -1247,12 +1385,14 @@
       byId('taken').value = '';
       byId('fuel').value = '';
       byId('km').value = '';
+      byId('driverNote').value = '';
       byId('confirmState').checked = false;
       byId('managerMode').checked = false;
       clearSignature();
       if(!keepSpz) {
           byId('spz').selectedIndex = 0;
       }
+      localStorage.removeItem('rb_draft');
       updateSummary();
     }
 
@@ -1300,6 +1440,15 @@
     }
 
     function bindStaticEvents(){
+      // Hook auto-save na důležitá pole
+      ['spz', 'driver', 'taken', 'fuel', 'km', 'driverNote'].forEach(id => {
+          byId(id).addEventListener('input', saveDraft);
+          byId(id).addEventListener('change', saveDraft);
+      });
+      document.getElementById('sec-tech').addEventListener('input', saveDraft);
+      document.getElementById('sec-visual').addEventListener('input', saveDraft);
+      document.getElementById('sec-other').addEventListener('input', saveDraft);
+
       byId('spz').addEventListener('change', loadCarryover);
       byId('saveBtn').addEventListener('click', save);
       
@@ -1328,6 +1477,7 @@
           const img = currentPhotoItem.querySelector('.photoPreview');
           img.src = dataUrl;
           img.classList.remove('hidden');
+          saveDraft();
         }catch(err){
           showToast('Fotku se nepodařilo zpracovat.', 'error');
         }
@@ -1357,15 +1507,20 @@
     document.addEventListener('DOMContentLoaded', () => {
       initSpz();
       initSignature();
-      
-      const lastDriver = localStorage.getItem('rb_last_driver');
-      if(lastDriver) byId('driver').value = lastDriver;
-
-      byId('today').textContent = todayString();
       renderSections();
       bindDynamicEvents();
       bindStaticEvents();
       renderHistory();
+      
+      // Obnova konceptu (Autosave) nebo alespoň jména řidiče
+      if (loadDraft()) {
+          showToast('Byl obnoven rozpracovaný koncept.', 'success');
+      } else {
+          const lastDriver = localStorage.getItem('rb_last_driver');
+          if(lastDriver) byId('driver').value = lastDriver;
+      }
+
+      byId('today').textContent = todayString();
       updateSummary();
     });
   </script>
