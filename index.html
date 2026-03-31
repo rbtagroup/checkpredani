@@ -104,7 +104,7 @@
 
     .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
     
-    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field { display: flex; flex-direction: column; gap: 4px; position: relative; }
     .field span { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;}
 
     /* Premium Inputs - Kompaktnější */
@@ -130,6 +130,20 @@
     }
     input:disabled, select:disabled, textarea:disabled { opacity: 0.6; cursor: not-allowed; }
 
+    /* Hlasové zadávání (Mikrofon) */
+    .dictateBtn {
+      position: absolute; right: 10px; bottom: 10px;
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 50%; width: 32px; height: 32px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: #cbd5e1; transition: all 0.2s;
+    }
+    .dictateBtn.listening {
+      background: rgba(239, 68, 68, 0.2); border-color: var(--red);
+      color: var(--red); animation: pulseRed 1.5s infinite;
+    }
+    @keyframes pulseRed { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+
     /* Checklist Items - Zhutněné */
     .item {
       background: var(--item-bg);
@@ -138,6 +152,7 @@
       padding: 10px;
       margin: 6px 0;
       transition: all 0.2s;
+      position: relative;
     }
     .item.ok { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.03); }
     .item.nok { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.04); }
@@ -160,7 +175,7 @@
     .okBtn.active { background: var(--green-grad); color: #fff; box-shadow: 0 2px 8px rgba(34,197,94,0.3); }
     .nokBtn.active { background: var(--red-grad); color: #fff; box-shadow: 0 2px 8px rgba(239,68,68,0.3); }
 
-    .note, .rideIssue { margin-top: 8px; }
+    .note, .rideIssue { margin-top: 8px; padding-right: 45px; /* Místo pro mikrofon */ }
     .hidden { display: none !important; }
     
     /* Alert / Warning Boxes */
@@ -223,6 +238,7 @@
     }
     .status.ok { color: #86efac; border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.1);}
     .status.nok { color: #fca5a5; border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.1);}
+    .status.offline { color: #facc15; border-color: rgba(250,204,21,0.3); background: rgba(250,204,21,0.1);}
     .pill { padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); font-size: 11px; font-weight: 600;}
 
     /* Photos */
@@ -304,7 +320,7 @@
 
     @media print {
       body { background: #fff; color: #000; padding: 0;}
-      .app, .detailOverlay, .actions, .warning, .ver, .sub, .status, #toast-container { display: none !important; }
+      .app, .detailOverlay, .actions, .warning, .ver, .sub, .status, #toast-container, .dictateBtn { display: none !important; }
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -334,7 +350,7 @@
     <header class="topbar">
       <div>
         <h1 class="gold-text" id="appTitle" style="cursor: pointer; user-select: none; -webkit-user-select: none;" title="Klikněte 5x pro manažerský režim">RB Taxi</h1>
-        <div class="sub">Předávací protokol <span class="ver">v35</span> <span id="managerIcon" class="hidden" title="Manažerský režim aktivní">🔓</span></div>
+        <div class="sub">Předávací protokol <span class="ver">v36</span> <span id="managerIcon" class="hidden" title="Manažerský režim aktivní">🔓</span></div>
       </div>
       <div id="vehicleStatus" class="status ok">STAV VOZU: OK</div>
     </header>
@@ -398,7 +414,12 @@
         </label>
         <label class="field" style="grid-column: 1 / -1; margin-top: 8px;">
           <span>Poznámka řidiče k předání</span>
-          <textarea id="driverNote" placeholder="Cokoliv dalšího, co by měl vědět kolega nebo manažer..."></textarea>
+          <div style="position: relative;">
+            <textarea id="driverNote" placeholder="Cokoliv dalšího, co by měl vědět kolega nebo manažer..."></textarea>
+            <button type="button" class="dictateBtn" title="Nadiktovat" onclick="startDictation('driverNote')">
+              <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+            </button>
+          </div>
         </label>
       </div>
     </section>
@@ -484,14 +505,24 @@
       });
     }
 
-    // --- Interní prohlížeč obrázků (Místo riskantního window.open) ---
+    // --- Monitorování sítě ---
+    window.addEventListener('offline', () => {
+      byId('vehicleStatus').textContent = '⚠️ OFFLINE';
+      byId('vehicleStatus').className = 'status offline';
+      showToast('Jste offline. Protokol se po uložení zachová lokálně.', 'error');
+    });
+    window.addEventListener('online', () => {
+      updateSummary(); // Obnoví správný stav zobrazení (OK / NEOK)
+      showToast('Připojení k internetu obnoveno.', 'success');
+    });
+
+    // --- Interní prohlížeč obrázků ---
     function openImage(src) {
         const overlay = document.getElementById('imageViewerOverlay');
         const img = document.getElementById('imageViewerImg');
         img.src = src;
         overlay.classList.remove('hidden');
     }
-    
     document.getElementById('imageViewerOverlay').addEventListener('click', function() {
         this.classList.add('hidden');
     });
@@ -507,7 +538,6 @@
       msgEl.innerHTML = message;
       overlay.classList.remove('hidden');
 
-      // Odstranění starých event listenerů klonováním tlačítek
       const newConfirm = btnConfirm.cloneNode(true);
       const newCancel = btnCancel.cloneNode(true);
       btnConfirm.replaceWith(newConfirm);
@@ -537,6 +567,59 @@
       });
     }
 
+    // --- Hlasové zadávání (Diktování) ---
+    function startDictation(targetId, btnElement = null) {
+      if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+        showToast('Váš prohlížeč nepodporuje hlasové zadávání.', 'error');
+        return;
+      }
+      
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      
+      recognition.lang = 'cs-CZ';
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      // Najít tlačítko pro vizualizaci poslechu
+      let targetBtn = btnElement;
+      if (!targetBtn && typeof targetId === 'string') {
+        targetBtn = byId(targetId).nextElementSibling; // předpoklad: btn je hned za textarea
+      }
+
+      recognition.start();
+
+      recognition.onstart = function() {
+        if(targetBtn) targetBtn.classList.add('listening');
+        if(navigator.vibrate) navigator.vibrate(50); // Haptická odezva startu
+        showToast('Naslouchám...', 'success');
+      };
+
+      recognition.onresult = function(event) {
+        const speechResult = event.results[0][0].transcript;
+        const targetElement = typeof targetId === 'string' ? byId(targetId) : targetId;
+        
+        if (targetElement) {
+          // Přidat mezeru, pokud už tam nějaký text je
+          if(targetElement.value.length > 0 && !targetElement.value.endsWith(' ')) {
+             targetElement.value += ' ';
+          }
+          // Velké první písmeno
+          const capitalized = speechResult.charAt(0).toUpperCase() + speechResult.slice(1);
+          targetElement.value += capitalized;
+          saveDraft(); // Uložit do autosave
+        }
+      };
+
+      recognition.onerror = function(event) {
+        showToast('Chyba rozpoznávání hlasu: ' + event.error, 'error');
+      };
+
+      recognition.onend = function() {
+        if(targetBtn) targetBtn.classList.remove('listening');
+      };
+    }
+
     // --- Secret Manager Unlock ---
     let unlockClicks = 0;
     let unlockTimer;
@@ -545,6 +628,7 @@
       clearTimeout(unlockTimer);
       unlockTimer = setTimeout(() => { unlockClicks = 0; }, 1000);
       if(unlockClicks >= 5) {
+        if(navigator.vibrate) navigator.vibrate([100, 50, 100]); // Úspěšný unlock haptika
         document.body.classList.toggle('manager-unlocked');
         unlockClicks = 0;
         
@@ -613,6 +697,7 @@
     }
 
     function showError(element, message) {
+      if(navigator.vibrate) navigator.vibrate([50, 50, 50]); // Haptika pro chybu
       element.style.outline = '2px solid var(--red)';
       element.style.outlineOffset = '2px';
       element.style.borderRadius = '10px';
@@ -661,7 +746,7 @@
                 <select class="issueType">
                   <option value="">Typ závady...</option>
                   <option value="špína">Špína / Znečištění</option>
-                  <option value="poškození">Poškození</option>
+                  <option value="poškození">Poškození (nutné foto)</option>
                   <option value="technická">Technická závada</option>
                   <option value="jiná">Jiná</option>
                 </select>
@@ -672,13 +757,28 @@
                 </select>
                 <button class="btn secondary photoBtn" type="button">📸 Vyfotit</button>
               </div>
-              <input class="note hidden extraFields" placeholder="Detailní popis...">
+              <div style="position:relative;">
+                <input class="note hidden extraFields" placeholder="Detailní popis...">
+                <button type="button" class="dictateBtn hidden extraFields" title="Nadiktovat">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+                </button>
+              </div>
               <img class="photoPreview hidden" alt="Náhled fotky">
             ` : group === 'tech' ? `
-              <input class="note hidden extraFields" placeholder="Detailní popis závady...">
+              <div style="position:relative;">
+                <input class="note hidden extraFields" placeholder="Detailní popis závady...">
+                <button type="button" class="dictateBtn hidden extraFields" title="Nadiktovat">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+                </button>
+              </div>
               <img class="photoPreview hidden" alt="Náhled fotky">
             ` : `
-              <input class="note hidden extraFields" placeholder="Poznámka / Co chybí...">
+              <div style="position:relative;">
+                <input class="note hidden extraFields" placeholder="Poznámka / Co chybí...">
+                <button type="button" class="dictateBtn hidden extraFields" title="Nadiktovat">
+                  <svg viewBox="0 0 24 24" width="14" height="14" stroke="currentColor" stroke-width="2" fill="none"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="22"></line></svg>
+                </button>
+              </div>
               <img class="photoPreview hidden" alt="Náhled fotky">
             `}
           </div>
@@ -694,9 +794,19 @@
       document.querySelectorAll('.item .okBtn').forEach(btn => btn.addEventListener('click', () => setState(btn,'ok')));
       document.querySelectorAll('.item .nokBtn').forEach(btn => btn.addEventListener('click', () => setState(btn,'nok')));
       document.querySelectorAll('.item .photoBtn').forEach(btn => btn.addEventListener('click', () => pickPhoto(btn)));
+      
+      // Propojení hlasových tlačítek uvnitř položek
+      document.querySelectorAll('.item .dictateBtn').forEach(btn => {
+        btn.addEventListener('click', function() {
+          const input = this.previousElementSibling; // Vždy předpokládáme že input je těsně před tlačítkem
+          startDictation(input, this);
+        });
+      });
     }
 
     function setState(btn, state){
+      if(navigator.vibrate) navigator.vibrate(20); // Haptika při kliknutí
+
       const item = btn.closest('.item');
       item.querySelectorAll('.state').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
@@ -809,14 +919,16 @@
           if(i.group === 'visual'){
             if(!i.type) return showError(itemNode.querySelector('.issueType'), `Doplňte typ: ${i.label}`);
             if(!i.who) return showError(itemNode.querySelector('.issueWho'), `Doplňte vznik: ${i.label}`);
+            // Kontrola povinné fotky u poškození (NOVINKA)
+            if(i.type === 'poškození' && !i.photo && !i.carried) {
+              return showError(itemNode.querySelector('.photoBtn'), `Poškození u položky "${i.label}" je nutné vyfotit!`);
+            }
           }
         }
       }
 
       if(!byId('fuel').value) return showError(byId('fuel'), 'Vyberte stav paliva.');
-      
       if(!byId('km').value.trim()) return showError(byId('km'), 'Zadejte stav tachometru.');
-      
       if(!byId('confirmState').checked) return showError(byId('confirmState').parentElement, 'Potvrďte kontrolu vozu zaškrtnutím políčka.');
       if(!hasSignature) return showError(byId('signaturePad').parentElement, 'Před uložením se podepište.');
 
@@ -926,7 +1038,12 @@
 
     async function save(){
       const items = getItems();
-      if(!validate(items)) return;
+      if(!validate(items)) {
+        if(navigator.vibrate) navigator.vibrate([50, 50, 50]); // Chyba haptika
+        return;
+      }
+
+      if(navigator.vibrate) navigator.vibrate(100); // Úspěšný start uložení
 
       const saveBtn = byId('saveBtn');
       const originalBtnHtml = saveBtn.innerHTML;
@@ -947,7 +1064,7 @@
         driverNote: byId('driverNote').value.trim(),
         signature: hasSignature ? sigCanvas.toDataURL('image/png', 0.5) : '', 
         items,
-        gps: coords, // Přidáno do záznamu
+        gps: coords, 
         status: items.some(i => i.state === 'nok') ? 'NEOK' : 'OK',
         criticalStop: items.some(i => i.state === 'nok' && i.critical),
         time: new Date().toISOString()
@@ -1026,7 +1143,7 @@
 
       updateSummary();
       toggleManagerMode();
-      saveDraft(); // Aktualizace konceptu po načtení minulých závad
+      saveDraft(); 
       
       if(issues.length > 0) {
         showToast(`Načteno ${issues.length} dřívějších závad.`, 'error');
@@ -1034,6 +1151,12 @@
     }
 
     function updateSummary(){
+      if(!navigator.onLine) {
+         byId('vehicleStatus').textContent = '⚠️ OFFLINE';
+         byId('vehicleStatus').className = 'status offline';
+         return; // Není potřeba měnit pokud jsme offline, ukazujeme warning
+      }
+
       const items = getItems();
       const nok = items.filter(i => i.state === 'nok');
       const critical = nok.some(i => i.critical);
