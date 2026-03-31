@@ -174,11 +174,13 @@
     /* Checkboxes */
     .checkline {
       display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; 
-      cursor: pointer; padding: 8px; background: rgba(255,255,255,0.02); 
-      border-radius: 10px; border: 1px solid transparent;
+      cursor: pointer; padding: 12px; background: rgba(255,255,255,0.02); 
+      border-radius: 10px; border: 1px solid var(--card-border);
+      transition: background 0.2s;
     }
-    .checkline input { width: 18px; height: 18px; accent-color: var(--gold); }
-    .checkline span { font-weight: 500; font-size: 13px; }
+    .checkline:active { background: rgba(255,255,255,0.05); }
+    .checkline input { width: 20px; height: 20px; accent-color: var(--gold); }
+    .checkline span { font-weight: 500; font-size: 14px; }
 
     /* Action Buttons - Menší a úhlednější */
     .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 14px; }
@@ -193,7 +195,7 @@
       background: var(--gold-grad); color: #000; font-weight: 700;
       box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); 
       grid-column: 1 / -1; 
-      font-size: 15px; padding: 14px; border-radius: 12px;
+      font-size: 16px; padding: 16px; border-radius: 12px;
     }
     
     .secondary { background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--card-border); backdrop-filter: blur(8px);}
@@ -286,6 +288,11 @@
 
     .icon { display: inline-block; width: 16px; height: 16px; stroke-width: 2; stroke: currentColor; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
+    /* Manažerský režim skrývání */
+    .manager-only { display: none !important; }
+    body.manager-unlocked label.manager-only { display: flex !important; }
+    body.manager-unlocked button.manager-only { display: flex !important; }
+
     @media print {
       body { background: #fff; color: #000; padding: 0;}
       .app, .detailOverlay, .actions, .warning, .ver, .sub, .status, #toast-container { display: none !important; }
@@ -300,8 +307,8 @@
   <div class="app">
     <header class="topbar">
       <div>
-        <h1 class="gold-text">RB Taxi</h1>
-        <div class="sub">Checklist Aplikace <span class="ver">v30</span></div>
+        <h1 class="gold-text" id="appTitle" style="cursor: pointer; user-select: none; -webkit-user-select: none;">RB Taxi</h1>
+        <div class="sub">Předávací protokol <span class="ver">v32</span></div>
       </div>
       <div id="vehicleStatus" class="status ok">STAV VOZU: OK</div>
     </header>
@@ -359,54 +366,15 @@
             <option value="Nízký stav">Nízký stav (rezerva)</option>
           </select>
         </label>
-        <label class="field">
-          <span>Tachometr START</span>
-          <input id="kmStart" type="number" inputmode="numeric" placeholder="např. 123456">
-        </label>
-        <label class="field">
-          <span>Tachometr END</span>
-          <input id="kmEnd" type="number" inputmode="numeric" placeholder="např. 123620">
+        <label class="field" style="grid-column: span 2;">
+          <span>Stav tachometru (km)</span>
+          <input id="km" type="number" inputmode="numeric" placeholder="např. 123456">
         </label>
       </div>
     </section>
 
     <section class="card">
-      <div class="cardHead"><h2>Uzavření směny</h2></div>
-
-      <div id="rideStatus" data-value="" class="item" style="border-color: rgba(255,255,255,0.1);">
-        <div class="rideRow">
-          <div class="label">Byla jízda v pořádku?</div>
-          <div class="btns">
-            <button class="state okBtn" type="button" id="rideOkBtn">
-                <svg viewBox="0 0 24 24" class="icon"><polyline points="20 6 9 17 4 12"></polyline></svg>
-            </button>
-            <button class="state nokBtn" type="button" id="rideNokBtn">
-                <svg viewBox="0 0 24 24" class="icon"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-          </div>
-        </div>
-        <textarea id="rideIssue" class="rideIssue hidden" placeholder="Popište problém během směny..."></textarea>
-      </div>
-
-      <label class="checkline">
-        <input type="checkbox" id="confirmState">
-        <span>Převzal(a) jsem vůz v tomto stavu</span>
-      </label>
-
-      <label class="checkline">
-        <input type="checkbox" id="handed">
-        <span>Řidič odevzdal vůz v pořádku</span>
-      </label>
-
-      <div class="field" style="margin: 12px 0;">
-        <span style="font-weight:700; color:var(--text-main); font-size:13px; text-transform: none;">Podpis (potvrzení)</span>
-        <div class="signatureWrap">
-          <canvas id="signaturePad" class="signaturePad"></canvas>
-          <div class="sigBtns">
-            <button class="btn secondary smallBtn" type="button" id="clearSigBtn">Vymazat</button>
-          </div>
-        </div>
-      </div>
+      <div class="cardHead"><h2>Potvrzení a převzetí</h2></div>
 
       <div id="nokSummaryBox" class="summary hidden">
         <div class="summaryTitle">
@@ -416,7 +384,22 @@
         <div id="nokSummary"></div>
       </div>
 
-      <label class="checkline" style="margin-bottom: 16px;">
+      <label class="checkline" style="margin-top: 10px;">
+        <input type="checkbox" id="confirmState">
+        <span>Zkontroloval(a) jsem vůz a přebírám jej v tomto stavu</span>
+      </label>
+
+      <div class="field" style="margin: 16px 0;">
+        <span style="font-weight:700; color:var(--text-main); font-size:13px; text-transform: none;">Podpis řidiče</span>
+        <div class="signatureWrap">
+          <canvas id="signaturePad" class="signaturePad"></canvas>
+          <div class="sigBtns">
+            <button class="btn secondary smallBtn" type="button" id="clearSigBtn">Vymazat</button>
+          </div>
+        </div>
+      </div>
+
+      <label class="checkline manager-only" style="margin-bottom: 16px;">
         <input type="checkbox" id="managerMode">
         <span style="color: var(--text-muted);">Skrýt položky bez závady</span>
       </label>
@@ -424,13 +407,13 @@
       <div class="actions">
         <button class="btn primary" id="saveBtn">
             <svg class="icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
-            Uložit směnu
+            Uložit report o převzetí
         </button>
-        <button class="btn secondary" id="imgBtn">Uložit fotku</button>
         <button class="btn secondary" id="shareBtn">Sdílet report</button>
-        <button class="btn secondary" id="exportBtn">Záloha</button>
-        <button class="btn secondary" id="importBtn">Obnova</button>
-        <button class="btn dangerBtn" id="resetBtn">Vyčistit</button>
+        <button class="btn secondary manager-only" id="imgBtn">Uložit fotku</button>
+        <button class="btn secondary manager-only" id="exportBtn">Záloha</button>
+        <button class="btn secondary manager-only" id="importBtn">Obnova</button>
+        <button class="btn dangerBtn manager-only" id="resetBtn">Vyčistit</button>
       </div>
     </section>
 
@@ -439,7 +422,7 @@
         <h2>Historie zařízení</h2>
         <div style="display: flex; gap: 6px; align-items: center;">
           <div class="pill muted" id="historyCount">0</div>
-          <button class="btn dangerBtn smallBtn" id="clearHistoryBtn" title="Vymazat paměť">Promazat</button>
+          <button class="btn dangerBtn smallBtn manager-only" id="clearHistoryBtn" title="Vymazat paměť">Promazat</button>
         </div>
       </div>
       <div id="history"></div>
@@ -450,7 +433,7 @@
     <div class="detailOverlay">
       <div class="detailCard">
         <div class="cardHead" style="margin-bottom: 16px;">
-          <h2 style="font-size: 18px;">Detail směny</h2>
+          <h2 style="font-size: 18px;">Detail převzetí vozu</h2>
           <button class="btn secondary smallBtn" id="closeDetailBtn">Zavřít</button>
         </div>
         <div id="detailBody"></div>
@@ -463,7 +446,6 @@
 
   <script>
     // --- PWA Service Worker Instalace ---
-    // Pro správnou funkci PWA na GitHub Pages vytvořte vedle tohoto index.html soubor s názvem 'sw.js'
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
         navigator.serviceWorker.register('./sw.js').catch(() => {
@@ -471,6 +453,20 @@
         });
       });
     }
+
+    // --- Secret Manager Unlock ---
+    let unlockClicks = 0;
+    let unlockTimer;
+    document.getElementById('appTitle').addEventListener('click', () => {
+      unlockClicks++;
+      clearTimeout(unlockTimer);
+      unlockTimer = setTimeout(() => { unlockClicks = 0; }, 1000);
+      if(unlockClicks >= 5) {
+        document.body.classList.toggle('manager-unlocked');
+        unlockClicks = 0;
+        showToast(document.body.classList.contains('manager-unlocked') ? '🔓 Manažerský režim odemčen' : '🔒 Manažerský režim uzamčen', 'success');
+      }
+    });
 
     const STORAGE_KEY = 'rb_v26_complete_history'; 
     const SPZ_LIST = ['2BY5398','1BU0299','1BU0060','2BL8995','2BT1565'];
@@ -585,8 +581,8 @@
                 </select>
                 <select class="issueWho">
                   <option value="">Vznik...</option>
-                  <option value="před směnou">Před směnou</option>
-                  <option value="během směny">Během směny</option>
+                  <option value="před směnou">Z dřívějška</option>
+                  <option value="během směny">Nově zjištěno</option>
                 </select>
                 <button class="btn secondary photoBtn" type="button">📸 Vyfotit</button>
               </div>
@@ -693,8 +689,8 @@
       if(!byId('driver').value.trim()) return showError(byId('driver'), 'Zadejte své jméno.');
       if(!byId('taken').value.trim()) return showError(byId('taken'), 'Od koho přebíráte?');
       
-      for(const i of document.querySelectorAll('.item:not(#rideStatus)')){
-        if(!i.dataset.state) return showError(i, 'Chybí označení ✓ nebo ✕.');
+      for(const i of document.querySelectorAll('.item')){
+        if(!i.dataset.state) return showError(i, 'Chybí označení ✓ nebo ✕ u kontroly vozidla.');
       }
 
       for(const i of items){
@@ -712,11 +708,7 @@
 
       if(!byId('fuel').value) return showError(byId('fuel'), 'Vyberte stav paliva.');
       
-      const rideStatus = byId('rideStatus').dataset.value || '';
-      if(!rideStatus) return showError(byId('rideStatus'), 'Byla jízda v pořádku?');
-      if(rideStatus === 'nok' && !byId('rideIssue').value.trim()) return showError(byId('rideIssue'), 'Popsat problém je povinné.');
-      
-      if(!byId('confirmState').checked) return showError(byId('confirmState').parentElement, 'Potvrďte převzetí vozu.');
+      if(!byId('confirmState').checked) return showError(byId('confirmState').parentElement, 'Potvrďte kontrolu vozu zaškrtnutím políčka.');
       if(!hasSignature) return showError(byId('signaturePad').parentElement, 'Před uložením se podepište.');
 
       return true;
@@ -745,13 +737,9 @@
         spz: byId('spz').value,
         driver: byId('driver').value.trim(),
         taken: byId('taken').value.trim(),
-        handed: byId('handed').checked,
         confirmed: byId('confirmState').checked,
         fuel: byId('fuel').value,
-        kmStart: byId('kmStart').value.trim(),
-        kmEnd: byId('kmEnd').value.trim(),
-        rideOk: byId('rideStatus').dataset.value || '',
-        rideIssue: byId('rideIssue').value.trim(),
+        km: byId('km').value.trim(),
         signature: hasSignature ? sigCanvas.toDataURL('image/png', 0.5) : '', 
         items,
         status: items.some(i => i.state === 'nok') ? 'NEOK' : 'OK',
@@ -770,7 +758,7 @@
         renderHistory();
         updateSummary();
         toggleManagerMode();
-        showToast('Úspěch! Uloženo.', 'success');
+        showToast('Úspěch! Protokol uložen.', 'success');
         
         resetForm(true);
         if(byId('spz').value) {
@@ -786,7 +774,7 @@
       
       const issues = JSON.parse(localStorage.getItem('carry_' + spz) || '[]');
 
-      document.querySelectorAll('.item:not(#rideStatus)').forEach(i => {
+      document.querySelectorAll('.item').forEach(i => {
         i.dataset.state = '';
         i.dataset.carried = 'false';
         i.dataset.photo = '';
@@ -830,23 +818,7 @@
       toggleManagerMode();
       
       if(issues.length > 0) {
-        showToast(`Z minula načteno ${issues.length} závad.`, 'error');
-      }
-    }
-
-    function setRideStatus(value){
-      byId('rideStatus').dataset.value = value;
-      byId('rideOkBtn').classList.toggle('active', value === 'ok');
-      byId('rideNokBtn').classList.toggle('active', value === 'nok');
-      byId('rideIssue').classList.toggle('hidden', value !== 'nok');
-      if(value !== 'nok') byId('rideIssue').value = '';
-      byId('rideStatus').style.outline = '';
-      if(value === 'nok') {
-        byId('rideStatus').classList.add('nok');
-        byId('rideStatus').classList.remove('ok');
-      } else {
-        byId('rideStatus').classList.add('ok');
-        byId('rideStatus').classList.remove('nok');
+        showToast(`Načteno ${issues.length} dřívějších závad.`, 'error');
       }
     }
 
@@ -929,6 +901,8 @@
         </div>
       `).join('');
 
+      let tachoStr = rec.km ? escapeHtml(rec.km) + ' km' : (rec.kmStart ? escapeHtml(rec.kmStart) + ' ➔ ' + escapeHtml(rec.kmEnd) + ' km' : '-');
+
       body.innerHTML = `
         <div class="grid" style="margin-bottom: 12px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; border: 1px solid var(--card-border);">
             <div><strong style="color:var(--text-muted); font-size:10px; text-transform:uppercase;">SPZ</strong><br><span style="font-size:15px; color:#fff; font-weight:700;">${escapeHtml(rec.spz)}</span></div>
@@ -938,23 +912,22 @@
         </div>
         
         <div style="display:grid; gap: 6px; margin-bottom: 16px;">
-            <div class="detailRow"><strong>Tacho:</strong> ${escapeHtml(rec.kmStart || '-')} ➔ ${escapeHtml(rec.kmEnd || '-')} km</div>
-            <div class="detailRow"><strong>Palivo:</strong> ${escapeHtml(rec.fuel || '-')}</div>
-            <div class="detailRow"><strong>Jízda OK:</strong> <span style="color:${rec.rideOk==='ok'?'var(--green)':'var(--red)'}; font-weight:bold;">${rec.rideOk === 'nok' ? 'NE' : (rec.rideOk === 'ok' ? 'ANO' : '-')}</span></div>
+            <div class="detailRow"><strong>Stav tachometru:</strong> ${tachoStr}</div>
+            <div class="detailRow"><strong>Stav paliva:</strong> ${escapeHtml(rec.fuel || '-')}</div>
+            ${rec.rideOk ? `<div class="detailRow"><strong>Jízda OK (Starý formát):</strong> <span style="color:${rec.rideOk==='ok'?'var(--green)':'var(--red)'}; font-weight:bold;">${rec.rideOk === 'nok' ? 'NE' : 'ANO'}</span></div>` : ''}
             ${rec.rideIssue ? `<div class="detailRow" style="background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3);"><strong style="color:#fca5a5;">Problém ze směny:</strong><br>${escapeHtml(rec.rideIssue)}</div>` : ''}
         </div>
 
-        <h3 style="margin: 0 0 10px; font-size:14px; color:#fff;">Checklist</h3>
+        <h3 style="margin: 0 0 10px; font-size:14px; color:#fff;">Checklist vozu</h3>
         <div class="detailList">${itemsHtml}</div>
         
         <div style="margin-top:16px; padding: 12px; background:rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--card-border);">
             <div style="margin-bottom:8px;"><strong>Potvrdil stav:</strong> <span style="color:${rec.confirmed?'var(--green)':'var(--red)'}">${rec.confirmed ? 'ANO' : 'NE'}</span></div>
-            <div style="margin-bottom:8px;"><strong>Odevzdal OK:</strong> <span style="color:${rec.handed?'var(--green)':'var(--red)'}">${rec.handed ? 'ANO' : 'NE'}</span></div>
             ${rec.signature ? `<div><strong style="display:block; margin-bottom:4px;">Podpis:</strong><img src="${rec.signature}" style="max-height:50px; background:rgba(255,255,255,0.9); border-radius:6px; padding:4px;"></div>` : ''}
         </div>
         
         <div style="margin-top: 20px; text-align: center;">
-            <button class="btn dangerBtn" id="deleteRecordBtn" style="width:100%; justify-content:center;">Smazat záznam</button>
+            <button class="btn dangerBtn manager-only" id="deleteRecordBtn" style="width:100%; justify-content:center;">Smazat záznam</button>
         </div>
       `;
 
@@ -1004,21 +977,22 @@
       const dt = new Date(rec.time).toLocaleString('cs-CZ', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
       const nokOnly = (rec.items||[]).filter(i => i.state === 'nok');
       const statusColor = rec.criticalStop ? '#ef4444' : (rec.status === 'OK' ? '#22c55e' : '#f59e0b');
+      
+      let tachoStr = rec.km ? escapeHtml(rec.km) + ' km' : (rec.kmStart ? escapeHtml(rec.kmStart) + ' ➔ ' + escapeHtml(rec.kmEnd) + ' km' : '-');
 
       wrap.innerHTML = `
         <div style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
-          <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #fff;">RB Taxi <span style="color: #facc15;">Checklist</span></h1>
+          <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #fff;">Předávací <span style="color: #facc15;">protokol</span></h1>
           <div style="font-size: 14px; color: #94a3b8;">${dt}</div>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #1e293b; padding: 16px; border-radius: 12px; margin-bottom: 20px; font-size: 14px; border: 1px solid rgba(255,255,255,0.05);">
           <div><strong style="color: #94a3b8;">SPZ:</strong> <span style="font-size: 18px; font-weight: bold; color: #fff;">${escapeHtml(rec.spz)}</span></div>
           <div><strong style="color: #94a3b8;">Stav vozu:</strong> <span style="color: ${statusColor}; font-weight: bold; font-size: 16px;">${escapeHtml(rec.criticalStop ? 'STOP - KRITICKÁ ZÁVADA' : rec.status)}</span></div>
-          <div><strong style="color: #94a3b8;">Řidič:</strong> ${escapeHtml(rec.driver)}</div>
+          <div><strong style="color: #94a3b8;">Přebírající řidič:</strong> ${escapeHtml(rec.driver)}</div>
           <div><strong style="color: #94a3b8;">Převzato po:</strong> ${escapeHtml(rec.taken)}</div>
-          <div><strong style="color: #94a3b8;">Tachometr:</strong> ${escapeHtml(rec.kmStart || '-')} ➔ ${escapeHtml(rec.kmEnd || '-')} km</div>
-          <div><strong style="color: #94a3b8;">Palivo:</strong> ${escapeHtml(rec.fuel || '-')}</div>
-          <div><strong style="color: #94a3b8;">Jízda OK:</strong> <span style="color:${rec.rideOk==='ok'?'#22c55e':'#ef4444'}; font-weight:bold;">${rec.rideOk === 'nok' ? 'NE' : (rec.rideOk === 'ok' ? 'ANO' : '-')}</span></div>
+          <div><strong style="color: #94a3b8;">Stav tachometru:</strong> ${tachoStr}</div>
+          <div><strong style="color: #94a3b8;">Stav paliva:</strong> ${escapeHtml(rec.fuel || '-')}</div>
           ${rec.rideIssue ? `<div style="grid-column: 1 / -1;"><strong style="color: #ef4444;">Problém ze směny:</strong> <span style="color: #f8fafc;">${escapeHtml(rec.rideIssue)}</span></div>` : ''}
         </div>
 
@@ -1043,7 +1017,7 @@
         `}
 
         <div style="margin-bottom: 20px; background: #1e293b; padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-          <h2 style="margin: 0 0 15px 0; font-size: 18px; color: #fff;">Checklist</h2>
+          <h2 style="margin: 0 0 15px 0; font-size: 18px; color: #fff;">Předávací checklist</h2>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; color: #cbd5e1;">
             ${(rec.items||[]).map(i => `
               <div style="display: flex; gap: 8px; align-items: flex-start;">
@@ -1056,8 +1030,7 @@
 
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #020617; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
           <div style="font-size: 15px; line-height: 1.6;">
-            <strong style="color: #94a3b8;">Potvrdil převzetí:</strong> <span style="color:${rec.confirmed?'#22c55e':'#ef4444'}; font-weight:bold;">${rec.confirmed ? 'ANO' : 'NE'}</span><br>
-            <strong style="color: #94a3b8;">Odevzdal v pořádku:</strong> <span style="color:${rec.handed?'#22c55e':'#ef4444'}; font-weight:bold;">${rec.handed ? 'ANO' : 'NE'}</span>
+            <strong style="color: #94a3b8;">Zkontroloval a převzal v tomto stavu:</strong> <span style="color:${rec.confirmed?'#22c55e':'#ef4444'}; font-weight:bold;">${rec.confirmed ? 'ANO' : 'NE'}</span><br>
           </div>
           ${rec.signature ? `
           <div style="text-align: center;">
@@ -1099,7 +1072,7 @@
         const blob = await generateImageBlob(rec);
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `Report_${rec.spz}_${new Date(rec.time).toISOString().split('T')[0]}.jpg`;
+        a.download = `Protokol_${rec.spz}_${new Date(rec.time).toISOString().split('T')[0]}.jpg`;
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 1000);
       } catch(e) {
@@ -1109,24 +1082,24 @@
 
     async function shareImageChecklist() {
       const history = getHistory();
-      if(history.length === 0) return showToast('Nejprve uložte směnu.');
+      if(history.length === 0) return showToast('Nejprve uložte protokol.');
       const rec = history[0];
 
       try {
         showToast('Připravuji obrázek...', 'success');
         const blob = await generateImageBlob(rec);
-        const file = new File([blob], `Report_${rec.spz}.jpg`, { type: 'image/jpeg' });
+        const file = new File([blob], `Protokol_${rec.spz}.jpg`, { type: 'image/jpeg' });
 
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({
-                title: `RB Taxi - ${rec.spz}`,
+                title: `Předávací protokol - ${rec.spz}`,
                 files: [file]
             });
         } else {
             showToast('Zařízení nepodporuje přímé sdílení. Soubor se stáhne.', 'error');
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `Report_${rec.spz}.jpg`;
+            a.download = `Protokol_${rec.spz}.jpg`;
             a.click();
         }
       } catch(e) {
@@ -1158,7 +1131,7 @@
       const history = getHistory();
       if(history.length === 0) return showToast('Paměť je již prázdná.');
       
-      const pass = prompt('Uvolní se paměť, zůstane 5 posledních směn.\nPro potvrzení napište: SMAZAT');
+      const pass = prompt('Uvolní se paměť, zůstane 5 posledních záznamů.\nPro potvrzení napište: SMAZAT');
       if(pass === 'SMAZAT') {
         const kept = history.slice(0, 5);
         if(setHistory(kept)) {
@@ -1172,7 +1145,7 @@
 
     function toggleManagerMode(){
       const enabled = byId('managerMode').checked;
-      document.querySelectorAll('.item:not(#rideStatus)').forEach(i => {
+      document.querySelectorAll('.item').forEach(i => {
         if(!enabled){ i.classList.remove('managerHidden'); return; }
         i.classList.toggle('managerHidden', (i.dataset.state || '') !== 'nok');
       });
@@ -1180,7 +1153,7 @@
 
     function resetForm(keepSpz=true){
       clearErrors();
-      document.querySelectorAll('.item:not(#rideStatus)').forEach(i => {
+      document.querySelectorAll('.item').forEach(i => {
         i.dataset.state = '';
         i.dataset.carried = 'false';
         i.dataset.photo = '';
@@ -1194,11 +1167,8 @@
       });
       byId('taken').value = '';
       byId('fuel').value = '';
-      byId('kmStart').value = '';
-      byId('kmEnd').value = '';
+      byId('km').value = '';
       byId('confirmState').checked = false;
-      byId('handed').checked = false;
-      setRideStatus('');
       byId('managerMode').checked = false;
       clearSignature();
       if(!keepSpz) {
@@ -1252,8 +1222,6 @@
 
     function bindStaticEvents(){
       byId('spz').addEventListener('change', loadCarryover);
-      byId('rideOkBtn').addEventListener('click', () => setRideStatus('ok'));
-      byId('rideNokBtn').addEventListener('click', () => setRideStatus('nok'));
       byId('saveBtn').addEventListener('click', save);
       
       byId('imgBtn').addEventListener('click', exportImage);
