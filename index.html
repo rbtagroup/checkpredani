@@ -350,7 +350,7 @@
     <header class="topbar">
       <div>
         <h1 class="gold-text" id="appTitle" style="cursor: pointer; user-select: none; -webkit-user-select: none;" title="Klikněte 5x pro manažerský režim">RB Taxi</h1>
-        <div class="sub">Předávací protokol <span class="ver">v36</span> <span id="managerIcon" class="hidden" title="Manažerský režim aktivní">🔓</span></div>
+        <div class="sub">Předávací protokol <span class="ver">v37</span> <span id="managerIcon" class="hidden" title="Manažerský režim aktivní">🔓</span></div>
       </div>
       <div id="vehicleStatus" class="status ok">STAV VOZU: OK</div>
     </header>
@@ -568,7 +568,23 @@
     }
 
     // --- Hlasové zadávání (Diktování) ---
+    let activeRecognition = null;
+
     function startDictation(targetId, btnElement = null) {
+      let targetBtn = btnElement;
+      if (!targetBtn && typeof targetId === 'string') {
+        targetBtn = byId(targetId).nextElementSibling; // předpoklad: btn je hned za textarea
+      }
+
+      // 1. Tlačítko funguje jako VYPÍNAČ, pokud už aplikace naslouchá
+      if (activeRecognition) {
+        activeRecognition.stop();
+        activeRecognition = null;
+        if(targetBtn) targetBtn.classList.remove('listening');
+        showToast('Naslouchání vypnuto.', 'success');
+        return; // Dál už nejdeme, jen jsme to vypli
+      }
+
       if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
         showToast('Váš prohlížeč nepodporuje hlasové zadávání.', 'error');
         return;
@@ -580,19 +596,13 @@
       recognition.lang = 'cs-CZ';
       recognition.interimResults = false;
       recognition.maxAlternatives = 1;
-
-      // Najít tlačítko pro vizualizaci poslechu
-      let targetBtn = btnElement;
-      if (!targetBtn && typeof targetId === 'string') {
-        targetBtn = byId(targetId).nextElementSibling; // předpoklad: btn je hned za textarea
-      }
-
-      recognition.start();
+      recognition.continuous = false; // Vynutí vypnutí po každé krátké pauze nebo větě
 
       recognition.onstart = function() {
         if(targetBtn) targetBtn.classList.add('listening');
         if(navigator.vibrate) navigator.vibrate(50); // Haptická odezva startu
-        showToast('Naslouchám...', 'success');
+        showToast('Naslouchám... (kliknutím zrušíte)', 'success');
+        activeRecognition = recognition;
       };
 
       recognition.onresult = function(event) {
@@ -612,12 +622,24 @@
       };
 
       recognition.onerror = function(event) {
-        showToast('Chyba rozpoznávání hlasu: ' + event.error, 'error');
+        // Občas mobil vyhodí "no-speech" když chvíli mlčíte, ignorujeme chybu a jen vypneme styl
+        if(event.error !== 'no-speech') {
+          showToast('Chyba rozpoznávání hlasu: ' + event.error, 'error');
+        }
+        if(targetBtn) targetBtn.classList.remove('listening');
+        activeRecognition = null;
       };
 
       recognition.onend = function() {
         if(targetBtn) targetBtn.classList.remove('listening');
+        activeRecognition = null;
       };
+
+      try {
+        recognition.start();
+      } catch(e) {
+        console.warn("Nelze spustit mikrofon", e);
+      }
     }
 
     // --- Secret Manager Unlock ---
