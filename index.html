@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>RB Taxi Checklist</title>
+  
+  <!-- PWA Meta Tagy pro instalaci na plochu -->
+  <meta name="theme-color" content="#020617">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RB Taxi">
+  <meta name="mobile-web-app-capable" content="yes">
+  
+  <!-- Dynamický Manifest pro instalaci bez dalších souborů -->
+  <link rel="manifest" href='data:application/manifest+json;utf-8,%7B%22name%22%3A%22RB%20Taxi%20Checklist%22%2C%22short_name%22%3A%22RB%20Taxi%22%2C%22start_url%22%3A%22.%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23020617%22%2C%22theme_color%22%3A%22%23020617%22%7D'>
+
+  <!-- Moderní prémiový font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-base: #020617;
+      --bg-gradient: linear-gradient(145deg, #020617, #0f172a, #020617);
+      --card-bg: rgba(15, 23, 42, 0.6);
+      --card-border: rgba(255, 255, 255, 0.08);
+      --item-bg: rgba(30, 41, 59, 0.5);
+      
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      
+      --gold: #facc15;
+      --gold-grad: linear-gradient(135deg, #facc15, #f59e0b);
+      --green: #22c55e;
+      --green-grad: linear-gradient(135deg, #34d399, #10b981);
+      --red: #ef4444;
+      --red-grad: linear-gradient(135deg, #f87171, #ef4444);
+      --orange: #f59e0b;
+      
+      --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --shadow-md: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.15);
+    }
+
+    html, body {
+      margin: 0; padding: 0;
+      overflow-x: hidden; overscroll-behavior-x: none;
+    }
+
+    * { box-sizing: border-box; max-width: 100%; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-gradient);
+      color: var(--text-main);
+      padding: 8px; /* Ještě kompaktnější okraje */
+      padding-bottom: 50px;
+      min-height: 100vh;
+      line-height: 1.4;
+    }
+
+    .app { max-width: 900px; margin: 0 auto; position: relative; }
+
+    /* Header styling */
+    .topbar {
+      display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px;
+      padding: 4px 4px 0 4px;
+    }
+    h1 {
+      margin: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;
+    }
+    .gold-text {
+      background: var(--gold-grad);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 2px 10px rgba(245, 158, 11, 0.2);
+    }
+    .sub { color: var(--text-muted); font-size: 12px; margin-top: 2px; font-weight: 500;}
+    .ver { 
+      display: inline-block; padding: 2px 5px; border-radius: 4px; 
+      background: rgba(255,255,255,0.1); border: 1px solid var(--card-border); 
+      font-size: 9px; font-weight: 700; vertical-align: middle; margin-left: 4px;
+    }
+
+    /* Glassmorphism Cards - Extrémně kompaktní */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--card-border);
+      border-radius: 16px; /* Menší zakulacení */
+      padding: 12px; /* Zmenšený padding */
+      margin: 8px 0; /* Zmenšená mezera mezi kartami */
+      box-shadow: var(--shadow-sm);
+    }
+    .cardHead {
+      display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;
+    }
+    h2 { margin: 0; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #cbd5e1;}
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+    
+    .field { display: flex; flex-direction: column; gap: 4px; }
+    .field span { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;}
+
+    /* Premium Inputs - Kompaktnější */
+    input, select, textarea {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.2);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      transition: all 0.3s ease;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+    }
+    input::placeholder, textarea::placeholder { color: #475569; }
+    textarea { min-height: 60px; resize: vertical; }
+    input:focus, select:focus, textarea:focus { 
+      outline: none; 
+      border-color: var(--gold); 
+      box-shadow: 0 0 0 3px rgba(250, 204, 21, 0.15), inset 0 2px 4px rgba(0,0,0,0.1); 
+      background: rgba(0, 0, 0, 0.4);
+    }
+
+    /* Checklist Items - Zhutněné */
+    .item {
+      background: var(--item-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 10px;
+      margin: 6px 0;
+      transition: all 0.2s;
+    }
+    .item.ok { border-color: rgba(34,197,94,0.4); background: rgba(34,197,94,0.03); }
+    .item.nok { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.04); }
+    .item.carry { border-color: rgba(245,158,11,0.5); background: rgba(245,158,11,0.04); }
+    
+    .row, .rideRow { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .label { font-weight: 600; font-size: 14px; line-height: 1.2;}
+    
+    /* Toggle Buttons - Menší bubliny */
+    .btns { display: flex; gap: 4px; background: rgba(0,0,0,0.2); padding: 3px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.05);}
+    .state {
+      width: 40px; height: 34px; border: none; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; background: transparent; color: #64748b; 
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .state svg { width: 18px; height: 18px; stroke-width: 2.5px; }
+    .state:active { transform: scale(0.9); }
+    
+    .okBtn.active { background: var(--green-grad); color: #fff; box-shadow: 0 2px 8px rgba(34,197,94,0.3); }
+    .nokBtn.active { background: var(--red-grad); color: #fff; box-shadow: 0 2px 8px rgba(239,68,68,0.3); }
+
+    .note, .rideIssue { margin-top: 8px; }
+    .hidden { display: none !important; }
+    
+    /* Alert / Warning Boxes */
+    .warning {
+      background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(220,38,38,0.2));
+      border: 1px solid rgba(239,68,68,0.4);
+      border-radius: 12px; padding: 12px;
+      font-weight: 700; font-size: 14px;
+      margin: 10px 0; color: #fca5a5;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .warning svg { width: 20px; height: 20px; flex-shrink: 0; }
+
+    /* Checkboxes */
+    .checkline {
+      display: flex; align-items: center; gap: 8px; margin: 4px 0 10px; 
+      cursor: pointer; padding: 8px; background: rgba(255,255,255,0.02); 
+      border-radius: 10px; border: 1px solid transparent;
+    }
+    .checkline input { width: 18px; height: 18px; accent-color: var(--gold); }
+    .checkline span { font-weight: 500; font-size: 13px; }
+
+    /* Action Buttons - Menší a úhlednější */
+    .actions { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-top: 14px; }
+    .btn {
+      border: none; border-radius: 10px; padding: 10px; font-weight: 600; font-size: 13px;
+      cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      font-family: inherit;
+    }
+    .btn:active { transform: scale(0.96); }
+    .primary { 
+      background: var(--gold-grad); color: #000; font-weight: 700;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2); 
+      grid-column: 1 / -1; 
+      font-size: 15px; padding: 14px; border-radius: 12px;
+    }
+    
+    .secondary { background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--card-border); backdrop-filter: blur(8px);}
+    .dangerBtn { background: rgba(239,68,68,0.1); color: #fca5a5; border: 1px solid rgba(239,68,68,0.3); }
+    .smallBtn { padding: 6px 10px; font-size: 11px; border-radius: 8px; }
+
+    /* Summaries */
+    .summary {
+      background: linear-gradient(135deg, rgba(239,68,68,0.05), rgba(239,68,68,0.1));
+      border: 1px solid rgba(239,68,68,0.2);
+      border-radius: 12px; padding: 12px; margin-bottom: 12px;
+    }
+    .summaryTitle { font-weight: 800; margin-bottom: 8px; color: #fca5a5; display: flex; align-items: center; gap: 6px; font-size: 14px;}
+    .summaryItem { padding: 8px 10px; border-radius: 8px; background: rgba(0,0,0,0.2); margin: 4px 0; border: 1px solid rgba(255,255,255,0.03); font-size: 13px;}
+
+    /* Status Badges */
+    .status {
+      padding: 4px 12px; border-radius: 999px; font-weight: 800; font-size: 11px;
+      border: 1px solid var(--card-border); background: rgba(255,255,255,0.04); 
+      text-align: center; letter-spacing: 0.5px;
+    }
+    .status.ok { color: #86efac; border-color: rgba(34,197,94,0.3); background: rgba(34,197,94,0.1);}
+    .status.nok { color: #fca5a5; border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.1);}
+    .pill { padding: 4px 10px; border-radius: 999px; background: rgba(255,255,255,0.05); border: 1px solid var(--card-border); font-size: 11px; font-weight: 600;}
+
+    /* Photos */
+    .photoBtn { padding: 8px 12px; margin-top: 8px; width: 100%; border-style: dashed; font-size: 12px;}
+    .photoPreview { display: block; max-width: 100%; height: 120px; margin-top: 8px; border-radius: 8px; border: 1px solid var(--card-border); object-fit: cover; }
+    
+    /* Meta rows */
+    .metaRow { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px;}
+    .metaRow select { font-size: 12px; padding: 8px; }
+    .metaRow .photoBtn { grid-column: 1 / -1; margin-top: 0; }
+
+    /* History styling */
+    #history { display: grid; gap: 8px; }
+    .histItem {
+      background: rgba(255,255,255,0.02); border: 1px solid var(--card-border);
+      border-radius: 12px; padding: 12px; cursor: pointer;
+    }
+    .histTop { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+    .histMeta { color: var(--text-muted); font-size: 11px; margin-top: 4px; line-height: 1.3;}
+    .tag { display: inline-block; padding: 2px 6px; border-radius: 999px; font-size: 9px; font-weight: 700; letter-spacing: 0.5px;}
+
+    /* Modal Overlay */
+    .detailOverlay {
+      position: fixed; inset: 0; background: rgba(2, 6, 23, 0.85);
+      display: flex; align-items: center; justify-content: center; padding: 10px;
+      z-index: 1000; backdrop-filter: blur(5px);
+      animation: fadeIn 0.2s ease-out;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    
+    .detailCard {
+      width: min(780px, 100%); max-height: 92vh; overflow: auto;
+      background: #0f172a; border: 1px solid var(--card-border); border-radius: 16px; 
+      padding: 16px; box-shadow: 0 20px 40px -10px rgba(0,0,0,0.5);
+      animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    
+    .detailList { display: grid; gap: 6px; margin-top: 10px; }
+    .detailRow { padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); font-size: 13px;}
+    .histPhotos { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+    .histThumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);}
+
+    /* Signature */
+    .signatureWrap {
+      border: 1px solid rgba(255,255,255,0.15); border-radius: 12px; background: rgba(0,0,0,0.3);
+      overflow: hidden; position: relative; margin-top: 4px;
+    }
+    .signaturePad { width: 100%; height: 140px; touch-action: none; cursor: crosshair; }
+    .sigBtns { position: absolute; top: 4px; right: 4px; display: flex; gap: 4px; }
+
+    /* Toast Notification */
+    #toast-container {
+      position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+      z-index: 9999; display: flex; flex-direction: column; gap: 8px;
+      pointer-events: none; width: 95%; max-width: 380px;
+    }
+    .toast {
+      background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px);
+      border: 1px solid var(--card-border); color: var(--text-main);
+      padding: 12px 16px; border-radius: 12px; font-weight: 600; font-size: 13px;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.3); text-align: center;
+      opacity: 0; transform: translateY(-20px); transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .toast.show { opacity: 1; transform: translateY(0); }
+
+    .icon { display: inline-block; width: 16px; height: 16px; stroke-width: 2; stroke: currentColor; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    @media print {
+      body { background: #fff; color: #000; padding: 0;}
+      .app, .detailOverlay, .actions, .warning, .ver, .sub, .status, #toast-container { display: none !important; }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body>
+  
+  <div id="toast-container"></div>
+
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1 class="gold-text">RB Taxi</h1>
+        <div class="sub">Checklist Aplikace <span class="ver">v30</span></div>
+      </div>
+      <div id="vehicleStatus" class="status ok">STAV VOZU: OK</div>
+    </header>
+
+    <section class="card">
+      <div class="cardHead">
+        <h2>Identifikace</h2>
+        <div id="today" class="pill"></div>
+      </div>
+      <div class="grid">
+        <label class="field">
+          <span>Vozidlo (SPZ)</span>
+          <select id="spz"></select>
+        </label>
+        <label class="field">
+          <span>Vaše Jméno</span>
+          <input id="driver" placeholder="Jméno řidiče" autocomplete="name">
+        </label>
+        <label class="field">
+          <span>Převzato po</span>
+          <input id="taken" placeholder="Předchozí řidič">
+        </label>
+      </div>
+    </section>
+
+    <div id="warning" class="warning hidden">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+      <span>Kritická závada – vůz nesmí jet</span>
+    </div>
+
+    <section class="card">
+      <div class="cardHead"><h2>Technika</h2></div>
+      <div id="sec-tech"></div>
+    </section>
+
+    <section class="card">
+      <div class="cardHead"><h2>Vizuální stav</h2></div>
+      <div id="sec-visual"></div>
+    </section>
+
+    <section class="card">
+      <div class="cardHead"><h2>Formální / systém</h2></div>
+      <div id="sec-other"></div>
+    </section>
+
+    <section class="card">
+      <div class="cardHead"><h2>Doplňující údaje</h2></div>
+      <div class="grid">
+        <label class="field">
+          <span>Stav paliva</span>
+          <select id="fuel">
+            <option value="">Vyberte stav</option>
+            <option value="Plná">Plná</option>
+            <option value="OK">OK (nad rezervou)</option>
+            <option value="Nízký stav">Nízký stav (rezerva)</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Tachometr START</span>
+          <input id="kmStart" type="number" inputmode="numeric" placeholder="např. 123456">
+        </label>
+        <label class="field">
+          <span>Tachometr END</span>
+          <input id="kmEnd" type="number" inputmode="numeric" placeholder="např. 123620">
+        </label>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="cardHead"><h2>Uzavření směny</h2></div>
+
+      <div id="rideStatus" data-value="" class="item" style="border-color: rgba(255,255,255,0.1);">
+        <div class="rideRow">
+          <div class="label">Byla jízda v pořádku?</div>
+          <div class="btns">
+            <button class="state okBtn" type="button" id="rideOkBtn">
+                <svg viewBox="0 0 24 24" class="icon"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </button>
+            <button class="state nokBtn" type="button" id="rideNokBtn">
+                <svg viewBox="0 0 24 24" class="icon"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
+          </div>
+        </div>
+        <textarea id="rideIssue" class="rideIssue hidden" placeholder="Popište problém během směny..."></textarea>
+      </div>
+
+      <label class="checkline">
+        <input type="checkbox" id="confirmState">
+        <span>Převzal(a) jsem vůz v tomto stavu</span>
+      </label>
+
+      <label class="checkline">
+        <input type="checkbox" id="handed">
+        <span>Řidič odevzdal vůz v pořádku</span>
+      </label>
+
+      <div class="field" style="margin: 12px 0;">
+        <span style="font-weight:700; color:var(--text-main); font-size:13px; text-transform: none;">Podpis (potvrzení)</span>
+        <div class="signatureWrap">
+          <canvas id="signaturePad" class="signaturePad"></canvas>
+          <div class="sigBtns">
+            <button class="btn secondary smallBtn" type="button" id="clearSigBtn">Vymazat</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="nokSummaryBox" class="summary hidden">
+        <div class="summaryTitle">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+            Přehled závad
+        </div>
+        <div id="nokSummary"></div>
+      </div>
+
+      <label class="checkline" style="margin-bottom: 16px;">
+        <input type="checkbox" id="managerMode">
+        <span style="color: var(--text-muted);">Skrýt položky bez závady</span>
+      </label>
+
+      <div class="actions">
+        <button class="btn primary" id="saveBtn">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            Uložit směnu
+        </button>
+        <button class="btn secondary" id="imgBtn">Uložit fotku</button>
+        <button class="btn secondary" id="shareBtn">Sdílet report</button>
+        <button class="btn secondary" id="exportBtn">Záloha</button>
+        <button class="btn secondary" id="importBtn">Obnova</button>
+        <button class="btn dangerBtn" id="resetBtn">Vyčistit</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="cardHead">
+        <h2>Historie zařízení</h2>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <div class="pill muted" id="historyCount">0</div>
+          <button class="btn dangerBtn smallBtn" id="clearHistoryBtn" title="Vymazat paměť">Promazat</button>
+        </div>
+      </div>
+      <div id="history"></div>
+    </section>
+  </div>
+
+  <template id="historyDetailTemplate">
+    <div class="detailOverlay">
+      <div class="detailCard">
+        <div class="cardHead" style="margin-bottom: 16px;">
+          <h2 style="font-size: 18px;">Detail směny</h2>
+          <button class="btn secondary smallBtn" id="closeDetailBtn">Zavřít</button>
+        </div>
+        <div id="detailBody"></div>
+      </div>
+    </div>
+  </template>
+
+  <input type="file" id="photoPicker" accept="image/*" hidden>
+  <input type="file" id="importFile" accept="application/json" hidden>
+
+  <script>
+    // --- PWA Service Worker Instalace ---
+    // Pro správnou funkci PWA na GitHub Pages vytvořte vedle tohoto index.html soubor s názvem 'sw.js'
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {
+          console.log('Service Worker běží v lokálním/náhledovém režimu (nebo chybí sw.js).');
+        });
+      });
+    }
+
+    const STORAGE_KEY = 'rb_v26_complete_history'; 
+    const SPZ_LIST = ['2BY5398','1BU0299','1BU0060','2BL8995','2BT1565'];
+
+    const SECTIONS = {
+      tech: [
+        {id:'lights',label:'Světla',critical:true},
+        {id:'brakes',label:'Brzdy',critical:true},
+        {id:'tires',label:'Pneumatiky',critical:true},
+        {id:'engine',label:'Motor / kontrolky',critical:true},
+        {id:'oil',label:'Hladina oleje',critical:true},
+        {id:'washer',label:'Ostřikovače a stěrače',critical:false},
+      ],
+      visual: [
+        {id:'interior',label:'Interiér (čistota, zápach)'},
+        {id:'damage',label:'Poškození vozidla'},
+        {id:'exterior',label:'Exteriér / čistota'},
+        {id:'trunk',label:'Kufr (prázdný)'},
+      ],
+      other: [
+        {id:'taximeter',label:'Taxametr (plomba, papír)'},
+        {id:'terminal',label:'Platební terminál (funkční)'},
+        {id:'phone',label:'Telefon e-disp'},
+        {id:'charger',label:'Nabíječka ve voze'},
+        {id:'equipment',label:'Výbava (lékárnička, vesty...)'},
+        {id:'docs',label:'Doklady'},
+        {id:'app',label:'Aplikace / GPS'},
+      ]
+    };
+
+    const ICON_OK = `<svg viewBox="0 0 24 24" class="icon"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+    const ICON_NOK = `<svg viewBox="0 0 24 24" class="icon"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+
+    let currentPhotoItem = null;
+    let sigCanvas, sigCtx, isDrawing = false, hasSignature = false;
+    let isModalOpen = false;
+
+    function byId(id){ return document.getElementById(id); }
+    function escapeHtml(s=''){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+    function showToast(message, type = 'error') {
+      const container = byId('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      
+      const icon = type === 'success' 
+        ? `<svg class="icon" style="color:#4ade80" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`
+        : `<svg class="icon" style="color:#f87171" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`;
+      
+      toast.innerHTML = `${icon} <span>${escapeHtml(message)}</span>`;
+      container.appendChild(toast);
+      
+      requestAnimationFrame(() => toast.classList.add('show'));
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 400);
+      }, 3000);
+    }
+
+    function showError(element, message) {
+      element.style.outline = '2px solid var(--red)';
+      element.style.outlineOffset = '2px';
+      element.style.borderRadius = '10px';
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showToast(message, 'error');
+      
+      const clearBorder = () => { element.style.outline = ''; };
+      element.addEventListener('input', clearBorder, {once: true});
+      element.addEventListener('change', clearBorder, {once: true});
+      element.addEventListener('click', clearBorder, {once: true});
+      return false;
+    }
+
+    function clearErrors() {
+      document.querySelectorAll('[style*="outline: 2px solid var(--red)"]').forEach(el => {
+        el.style.outline = '';
+        el.style.outlineOffset = '';
+      });
+    }
+
+    function initSpz(){
+      byId('spz').innerHTML = '<option value="">-- Vyberte vozidlo --</option>' + SPZ_LIST.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+
+    function todayString(){ 
+      const opts = { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' };
+      const str = new Date().toLocaleDateString('cs-CZ', opts); 
+      return str.charAt(0).toUpperCase() + str.slice(1);
+    }
+
+    function renderSections(){
+      const render = (containerId, items, group) => {
+        byId(containerId).innerHTML = items.map(i => `
+          <div class="item" data-id="${i.id}" data-group="${group}" data-label="${escapeHtml(i.label)}" data-critical="${i.critical ? 'true' : 'false'}">
+            <div class="row">
+              <div>
+                <div class="label">${escapeHtml(i.label)}</div>
+              </div>
+              <div class="btns">
+                <button class="state okBtn" type="button">${ICON_OK}</button>
+                <button class="state nokBtn" type="button">${ICON_NOK}</button>
+              </div>
+            </div>
+            ${group === 'visual' ? `
+              <div class="metaRow hidden extraFields">
+                <select class="issueType">
+                  <option value="">Typ závady...</option>
+                  <option value="špína">Špína / Znečištění</option>
+                  <option value="poškození">Poškození</option>
+                  <option value="technická">Technická závada</option>
+                  <option value="jiná">Jiná</option>
+                </select>
+                <select class="issueWho">
+                  <option value="">Vznik...</option>
+                  <option value="před směnou">Před směnou</option>
+                  <option value="během směny">Během směny</option>
+                </select>
+                <button class="btn secondary photoBtn" type="button">📸 Vyfotit</button>
+              </div>
+              <input class="note hidden extraFields" placeholder="Detailní popis...">
+              <img class="photoPreview hidden" alt="Náhled fotky">
+            ` : group === 'tech' ? `
+              <input class="note hidden extraFields" placeholder="Detailní popis závady...">
+              <img class="photoPreview hidden" alt="Náhled fotky">
+            ` : `
+              <input class="note hidden extraFields" placeholder="Poznámka / Co chybí...">
+              <img class="photoPreview hidden" alt="Náhled fotky">
+            `}
+          </div>
+        `).join('');
+      };
+
+      render('sec-tech', SECTIONS.tech, 'tech');
+      render('sec-visual', SECTIONS.visual, 'visual');
+      render('sec-other', SECTIONS.other, 'other');
+    }
+
+    function bindDynamicEvents(){
+      document.querySelectorAll('.item .okBtn').forEach(btn => btn.addEventListener('click', () => setState(btn,'ok')));
+      document.querySelectorAll('.item .nokBtn').forEach(btn => btn.addEventListener('click', () => setState(btn,'nok')));
+      document.querySelectorAll('.item .photoBtn').forEach(btn => btn.addEventListener('click', () => pickPhoto(btn)));
+    }
+
+    function setState(btn, state){
+      const item = btn.closest('.item');
+      item.querySelectorAll('.state').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      item.dataset.state = state;
+      item.classList.remove('ok','nok','carry');
+      item.classList.add(state === 'nok' ? 'nok' : 'ok');
+      item.style.outline = '';
+
+      const extras = item.querySelectorAll('.extraFields');
+
+      if(state === 'nok'){
+        extras.forEach(el => el.classList.remove('hidden'));
+      } else {
+        extras.forEach(el => el.classList.add('hidden'));
+        const note = item.querySelector('.note');
+        if(note) note.value = '';
+        const t = item.querySelector('.issueType'); if(t) t.value = '';
+        const w = item.querySelector('.issueWho'); if(w) w.value = '';
+        const img = item.querySelector('.photoPreview');
+        if(img){ img.src = ''; img.classList.add('hidden'); }
+        item.dataset.photo = '';
+        item.dataset.carried = 'false';
+      }
+
+      updateSummary();
+      toggleManagerMode();
+    }
+
+    function pickPhoto(btn){
+      currentPhotoItem = btn.closest('.item');
+      byId('photoPicker').value = '';
+      byId('photoPicker').click();
+    }
+
+    function compressImage(file, maxW=800, quality=0.6){
+      return new Promise((resolve, reject) => {
+        const fr = new FileReader();
+        fr.onload = () => {
+          const img = new Image();
+          img.onload = () => {
+            const ratio = Math.min(1, maxW / img.width);
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.round(img.width * ratio);
+            canvas.height = Math.round(img.height * ratio);
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            resolve(canvas.toDataURL('image/jpeg', quality));
+          };
+          img.onerror = reject;
+          img.src = fr.result;
+        };
+        fr.onerror = reject;
+        fr.readAsDataURL(file);
+      });
+    }
+
+    function getItems(){
+      return [...document.querySelectorAll('.item')].map(i => ({
+        id: i.dataset.id,
+        group: i.dataset.group,
+        label: i.dataset.label,
+        state: i.dataset.state || '',
+        note: i.querySelector('.note')?.value.trim() || '',
+        critical: i.dataset.critical === 'true',
+        carried: i.dataset.carried === 'true',
+        type: i.querySelector('.issueType')?.value || '',
+        who: i.querySelector('.issueWho')?.value || '',
+        photo: i.dataset.photo || ''
+      }));
+    }
+
+    function validate(items){
+      clearErrors();
+      
+      if(!byId('spz').value) return showError(byId('spz'), 'Vyberte vozidlo.');
+      if(!byId('driver').value.trim()) return showError(byId('driver'), 'Zadejte své jméno.');
+      if(!byId('taken').value.trim()) return showError(byId('taken'), 'Od koho přebíráte?');
+      
+      for(const i of document.querySelectorAll('.item:not(#rideStatus)')){
+        if(!i.dataset.state) return showError(i, 'Chybí označení ✓ nebo ✕.');
+      }
+
+      for(const i of items){
+        if(i.state === 'nok'){
+          const itemNode = document.querySelector(`.item[data-id="${i.id}"]`);
+          if((i.group === 'tech' || i.group === 'visual' || i.id === 'docs') && !i.note){
+            return showError(itemNode.querySelector('.note'), `Doplňte detail u: ${i.label}`);
+          }
+          if(i.group === 'visual'){
+            if(!i.type) return showError(itemNode.querySelector('.issueType'), `Doplňte typ: ${i.label}`);
+            if(!i.who) return showError(itemNode.querySelector('.issueWho'), `Doplňte vznik: ${i.label}`);
+          }
+        }
+      }
+
+      if(!byId('fuel').value) return showError(byId('fuel'), 'Vyberte stav paliva.');
+      
+      const rideStatus = byId('rideStatus').dataset.value || '';
+      if(!rideStatus) return showError(byId('rideStatus'), 'Byla jízda v pořádku?');
+      if(rideStatus === 'nok' && !byId('rideIssue').value.trim()) return showError(byId('rideIssue'), 'Popsat problém je povinné.');
+      
+      if(!byId('confirmState').checked) return showError(byId('confirmState').parentElement, 'Potvrďte převzetí vozu.');
+      if(!hasSignature) return showError(byId('signaturePad').parentElement, 'Před uložením se podepište.');
+
+      return true;
+    }
+
+    function getHistory(){
+      try{ return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }catch(e){ return []; }
+    }
+    
+    function setHistory(arr){
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+        return true;
+      } catch (e) {
+        showToast('Chyba: Plná paměť zařízení!', 'error');
+        return false;
+      }
+    }
+
+    function save(){
+      const items = getItems();
+      if(!validate(items)) return;
+
+      const rec = {
+        id: Date.now().toString(),
+        spz: byId('spz').value,
+        driver: byId('driver').value.trim(),
+        taken: byId('taken').value.trim(),
+        handed: byId('handed').checked,
+        confirmed: byId('confirmState').checked,
+        fuel: byId('fuel').value,
+        kmStart: byId('kmStart').value.trim(),
+        kmEnd: byId('kmEnd').value.trim(),
+        rideOk: byId('rideStatus').dataset.value || '',
+        rideIssue: byId('rideIssue').value.trim(),
+        signature: hasSignature ? sigCanvas.toDataURL('image/png', 0.5) : '', 
+        items,
+        status: items.some(i => i.state === 'nok') ? 'NEOK' : 'OK',
+        criticalStop: items.some(i => i.state === 'nok' && i.critical),
+        time: new Date().toISOString()
+      };
+
+      const history = getHistory();
+      history.unshift(rec);
+      
+      if(setHistory(history)){
+        const carry = items.filter(i => i.state === 'nok');
+        localStorage.setItem('carry_' + rec.spz, JSON.stringify(carry));
+        localStorage.setItem('rb_last_driver', rec.driver);
+
+        renderHistory();
+        updateSummary();
+        toggleManagerMode();
+        showToast('Úspěch! Uloženo.', 'success');
+        
+        resetForm(true);
+        if(byId('spz').value) {
+            loadCarryover(); 
+        }
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    }
+
+    function loadCarryover(){
+      const spz = byId('spz').value;
+      if(!spz) return;
+      
+      const issues = JSON.parse(localStorage.getItem('carry_' + spz) || '[]');
+
+      document.querySelectorAll('.item:not(#rideStatus)').forEach(i => {
+        i.dataset.state = '';
+        i.dataset.carried = 'false';
+        i.dataset.photo = '';
+        i.classList.remove('ok','nok','carry','managerHidden');
+        i.querySelectorAll('.state').forEach(b => b.classList.remove('active'));
+        const note = i.querySelector('.note'); if(note){ note.value = ''; note.classList.add('hidden'); }
+        const t = i.querySelector('.issueType'); if(t) t.value = '';
+        const w = i.querySelector('.issueWho'); if(w) w.value = '';
+        const img = i.querySelector('.photoPreview'); if(img){ img.src=''; img.classList.add('hidden'); }
+        i.querySelectorAll('.extraFields').forEach(el => el.classList.add('hidden'));
+      });
+
+      issues.forEach(found => {
+        const item = document.querySelector('.item[data-id="' + found.id + '"]');
+        if(item){
+          item.dataset.state = 'nok';
+          item.dataset.carried = 'true';
+          item.classList.add('carry');
+          const nokBtn = item.querySelector('.nokBtn');
+          if(nokBtn) nokBtn.classList.add('active');
+
+          item.querySelectorAll('.extraFields').forEach(el => el.classList.remove('hidden'));
+
+          const note = item.querySelector('.note');
+          if(note){
+            note.value = found.note || 'Z minulé směny';
+            note.classList.remove('hidden');
+          }
+
+          const t = item.querySelector('.issueType'); if(t) t.value = found.type || '';
+          const w = item.querySelector('.issueWho'); if(w) w.value = found.who || '';
+          if(found.photo){
+            item.dataset.photo = found.photo;
+            const img = item.querySelector('.photoPreview');
+            if(img){ img.src = found.photo; img.classList.remove('hidden'); }
+          }
+        }
+      });
+
+      updateSummary();
+      toggleManagerMode();
+      
+      if(issues.length > 0) {
+        showToast(`Z minula načteno ${issues.length} závad.`, 'error');
+      }
+    }
+
+    function setRideStatus(value){
+      byId('rideStatus').dataset.value = value;
+      byId('rideOkBtn').classList.toggle('active', value === 'ok');
+      byId('rideNokBtn').classList.toggle('active', value === 'nok');
+      byId('rideIssue').classList.toggle('hidden', value !== 'nok');
+      if(value !== 'nok') byId('rideIssue').value = '';
+      byId('rideStatus').style.outline = '';
+      if(value === 'nok') {
+        byId('rideStatus').classList.add('nok');
+        byId('rideStatus').classList.remove('ok');
+      } else {
+        byId('rideStatus').classList.add('ok');
+        byId('rideStatus').classList.remove('nok');
+      }
+    }
+
+    function updateSummary(){
+      const items = getItems();
+      const nok = items.filter(i => i.state === 'nok');
+      const critical = nok.some(i => i.critical);
+
+      byId('warning').classList.toggle('hidden', !critical);
+
+      const summaryBox = byId('nokSummaryBox');
+      const summary = byId('nokSummary');
+      if(nok.length === 0){
+        summaryBox.classList.add('hidden');
+        summary.innerHTML = '';
+        byId('vehicleStatus').textContent = 'STAV: OK';
+        byId('vehicleStatus').className = 'status ok';
+      } else {
+        summaryBox.classList.remove('hidden');
+        summary.innerHTML = nok.map(i => `
+          <div class="summaryItem">
+            <strong style="color:var(--text-main);">${escapeHtml(i.label)}</strong>${i.carried ? ' <span class="tag" style="background:var(--orange); color:#000;">Z MINULA</span>' : ''}
+            <div class="histMeta">${escapeHtml(i.note || 'bez popisu')}</div>
+            ${i.group === 'visual' ? `<div class="histMeta" style="color:#64748b;">${i.type ? 'Typ: ' + escapeHtml(i.type) : ''}${i.who ? ' • Vznik: ' + escapeHtml(i.who) : ''}</div>` : ''}
+          </div>
+        `).join('');
+        byId('vehicleStatus').textContent = critical ? 'KRITICKÁ ZÁVADA' : 'STAV: NEOK';
+        byId('vehicleStatus').className = 'status nok';
+      }
+    }
+
+    function renderHistory(){
+      const history = getHistory();
+      byId('historyCount').textContent = history.length;
+
+      if(history.length === 0){
+        byId('history').innerHTML = '<div class="histMeta" style="text-align:center; padding: 15px;">Žádná historie.</div>';
+        return;
+      }
+
+      byId('history').innerHTML = history.map(h => {
+        const dt = new Date(h.time).toLocaleString('cs-CZ', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+        const nokCount = (h.items || []).filter(i => i.state === 'nok').length;
+        const critical = (h.items || []).some(i => i.state === 'nok' && i.critical);
+        
+        let statusTag = '';
+        if(critical) statusTag = '<span class="tag" style="background:var(--red-grad); color:#fff;">STOP</span>';
+        else if(h.status === 'OK') statusTag = '<span class="tag" style="background:var(--green-grad); color:#fff;">OK</span>';
+        else statusTag = '<span class="tag" style="background:rgba(245,158,11,0.2); color:var(--orange);">NEOK</span>';
+
+        return `
+          <div class="histItem" data-id="${h.id}">
+            <div class="histTop">
+              <strong style="font-size:13px; color:#fff;">${escapeHtml(h.spz)} <span style="color:var(--text-muted); font-weight:normal;">• ${escapeHtml(h.driver)}</span></strong>
+              ${statusTag}
+            </div>
+            <div class="histMeta">${escapeHtml(dt)} • Závad: <strong style="color:${nokCount > 0 ? 'var(--red)' : 'var(--text-muted)'}">${nokCount}</strong></div>
+          </div>
+        `;
+      }).join('');
+      document.querySelectorAll('.histItem').forEach(el => el.addEventListener('click', () => openDetail(el.dataset.id)));
+    }
+
+    function openDetail(id){
+      const rec = getHistory().find(x => x.id === id);
+      if(!rec) return;
+
+      const tpl = byId('historyDetailTemplate');
+      const node = tpl.content.cloneNode(true);
+      const body = node.querySelector('#detailBody');
+
+      const itemsHtml = (rec.items||[]).map(i => `
+        <div class="detailRow" style="border-left: 3px solid ${i.state==='ok'?'var(--green)':'var(--red)'}">
+          <strong style="color:#fff;">${escapeHtml(i.label)}</strong> — 
+          <span style="color:${i.state==='ok'?'var(--green)':'var(--red)'}; font-weight:600;">${escapeHtml(i.state ? i.state.toUpperCase() : 'NEVYPLNĚNO')}</span>
+          ${i.carried ? ' <span class="tag" style="background:var(--orange); color:#000; float:right;">Z MINULA</span>' : ''}
+          ${i.note ? `<div class="histMeta" style="color:#cbd5e1; margin-top:4px;">${escapeHtml(i.note)}</div>` : ''}
+          ${i.group === 'visual' && i.state === 'nok' ? `<div class="histMeta">${i.type ? 'Typ: ' + escapeHtml(i.type) : ''}${i.who ? ' • Vznik: ' + escapeHtml(i.who) : ''}</div>` : ''}
+          ${i.photo ? `<div class="histPhotos"><img class="histThumb" src="${i.photo}" onclick="window.open('${i.photo}')"></div>` : ''}
+        </div>
+      `).join('');
+
+      body.innerHTML = `
+        <div class="grid" style="margin-bottom: 12px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px; border: 1px solid var(--card-border);">
+            <div><strong style="color:var(--text-muted); font-size:10px; text-transform:uppercase;">SPZ</strong><br><span style="font-size:15px; color:#fff; font-weight:700;">${escapeHtml(rec.spz)}</span></div>
+            <div><strong style="color:var(--text-muted); font-size:10px; text-transform:uppercase;">Čas</strong><br><span style="color:#fff;">${escapeHtml(new Date(rec.time).toLocaleString('cs-CZ'))}</span></div>
+            <div><strong style="color:var(--text-muted); font-size:10px; text-transform:uppercase;">Řidič</strong><br><span style="color:#fff;">${escapeHtml(rec.driver)}</span></div>
+            <div><strong style="color:var(--text-muted); font-size:10px; text-transform:uppercase;">Předchůdce</strong><br><span style="color:#fff;">${escapeHtml(rec.taken)}</span></div>
+        </div>
+        
+        <div style="display:grid; gap: 6px; margin-bottom: 16px;">
+            <div class="detailRow"><strong>Tacho:</strong> ${escapeHtml(rec.kmStart || '-')} ➔ ${escapeHtml(rec.kmEnd || '-')} km</div>
+            <div class="detailRow"><strong>Palivo:</strong> ${escapeHtml(rec.fuel || '-')}</div>
+            <div class="detailRow"><strong>Jízda OK:</strong> <span style="color:${rec.rideOk==='ok'?'var(--green)':'var(--red)'}; font-weight:bold;">${rec.rideOk === 'nok' ? 'NE' : (rec.rideOk === 'ok' ? 'ANO' : '-')}</span></div>
+            ${rec.rideIssue ? `<div class="detailRow" style="background:rgba(239,68,68,0.1); border-color:rgba(239,68,68,0.3);"><strong style="color:#fca5a5;">Problém ze směny:</strong><br>${escapeHtml(rec.rideIssue)}</div>` : ''}
+        </div>
+
+        <h3 style="margin: 0 0 10px; font-size:14px; color:#fff;">Checklist</h3>
+        <div class="detailList">${itemsHtml}</div>
+        
+        <div style="margin-top:16px; padding: 12px; background:rgba(0,0,0,0.2); border-radius: 12px; border: 1px solid var(--card-border);">
+            <div style="margin-bottom:8px;"><strong>Potvrdil stav:</strong> <span style="color:${rec.confirmed?'var(--green)':'var(--red)'}">${rec.confirmed ? 'ANO' : 'NE'}</span></div>
+            <div style="margin-bottom:8px;"><strong>Odevzdal OK:</strong> <span style="color:${rec.handed?'var(--green)':'var(--red)'}">${rec.handed ? 'ANO' : 'NE'}</span></div>
+            ${rec.signature ? `<div><strong style="display:block; margin-bottom:4px;">Podpis:</strong><img src="${rec.signature}" style="max-height:50px; background:rgba(255,255,255,0.9); border-radius:6px; padding:4px;"></div>` : ''}
+        </div>
+        
+        <div style="margin-top: 20px; text-align: center;">
+            <button class="btn dangerBtn" id="deleteRecordBtn" style="width:100%; justify-content:center;">Smazat záznam</button>
+        </div>
+      `;
+
+      document.body.appendChild(node);
+      
+      isModalOpen = true;
+      history.pushState({ modalOpen: true }, '');
+
+      document.getElementById('closeDetailBtn').addEventListener('click', () => { history.back(); });
+      document.querySelector('.detailOverlay').addEventListener('click', (e) => {
+        if(e.target.classList.contains('detailOverlay')) history.back();
+      });
+
+      document.getElementById('deleteRecordBtn').addEventListener('click', () => {
+          if(confirm('Opravdu chcete tento záznam trvale smazat?')) {
+              let hist = getHistory();
+              hist = hist.filter(x => x.id !== id);
+              setHistory(hist);
+              renderHistory();
+              history.back();
+              showToast('Záznam smazán.', 'success');
+          }
+      });
+    }
+
+    window.addEventListener('popstate', () => {
+       if(isModalOpen) {
+           document.querySelector('.detailOverlay')?.remove();
+           isModalOpen = false;
+       }
+    });
+
+    // --- FUNKCE PRO GENEROVÁNÍ KOMPAKTNÍHO OBRÁZKU SMĚNY ---
+    function createExportDOM(rec) {
+      const wrap = document.createElement('div');
+      wrap.style.position = 'absolute';
+      wrap.style.left = '-9999px';
+      wrap.style.top = '0';
+      wrap.style.width = '700px'; 
+      wrap.style.backgroundColor = '#0f172a';
+      wrap.style.color = '#f8fafc';
+      wrap.style.padding = '25px'; 
+      wrap.style.fontFamily = 'Arial, sans-serif'; 
+      wrap.style.boxSizing = 'border-box';
+      wrap.style.zIndex = '-100';
+
+      const dt = new Date(rec.time).toLocaleString('cs-CZ', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'});
+      const nokOnly = (rec.items||[]).filter(i => i.state === 'nok');
+      const statusColor = rec.criticalStop ? '#ef4444' : (rec.status === 'OK' ? '#22c55e' : '#f59e0b');
+
+      wrap.innerHTML = `
+        <div style="border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 15px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end;">
+          <h1 style="margin: 0; font-size: 28px; font-weight: bold; color: #fff;">RB Taxi <span style="color: #facc15;">Checklist</span></h1>
+          <div style="font-size: 14px; color: #94a3b8;">${dt}</div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #1e293b; padding: 16px; border-radius: 12px; margin-bottom: 20px; font-size: 14px; border: 1px solid rgba(255,255,255,0.05);">
+          <div><strong style="color: #94a3b8;">SPZ:</strong> <span style="font-size: 18px; font-weight: bold; color: #fff;">${escapeHtml(rec.spz)}</span></div>
+          <div><strong style="color: #94a3b8;">Stav vozu:</strong> <span style="color: ${statusColor}; font-weight: bold; font-size: 16px;">${escapeHtml(rec.criticalStop ? 'STOP - KRITICKÁ ZÁVADA' : rec.status)}</span></div>
+          <div><strong style="color: #94a3b8;">Řidič:</strong> ${escapeHtml(rec.driver)}</div>
+          <div><strong style="color: #94a3b8;">Převzato po:</strong> ${escapeHtml(rec.taken)}</div>
+          <div><strong style="color: #94a3b8;">Tachometr:</strong> ${escapeHtml(rec.kmStart || '-')} ➔ ${escapeHtml(rec.kmEnd || '-')} km</div>
+          <div><strong style="color: #94a3b8;">Palivo:</strong> ${escapeHtml(rec.fuel || '-')}</div>
+          <div><strong style="color: #94a3b8;">Jízda OK:</strong> <span style="color:${rec.rideOk==='ok'?'#22c55e':'#ef4444'}; font-weight:bold;">${rec.rideOk === 'nok' ? 'NE' : (rec.rideOk === 'ok' ? 'ANO' : '-')}</span></div>
+          ${rec.rideIssue ? `<div style="grid-column: 1 / -1;"><strong style="color: #ef4444;">Problém ze směny:</strong> <span style="color: #f8fafc;">${escapeHtml(rec.rideIssue)}</span></div>` : ''}
+        </div>
+
+        ${nokOnly.length > 0 ? `
+        <div style="background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); padding: 16px; border-radius: 12px; margin-bottom: 20px;">
+          <h2 style="margin: 0 0 15px 0; color: #fca5a5; font-size: 18px;">Evidované závady</h2>
+          ${nokOnly.map(i => `
+            <div style="margin-bottom: 12px; font-size: 14px; background: rgba(0,0,0,0.2); padding: 12px; border-radius: 8px;">
+              <strong style="color: #fff; font-size: 15px;">• ${escapeHtml(i.label)}</strong>
+              ${i.carried ? `<span style="background: #f59e0b; color: #000; padding: 2px 8px; border-radius: 999px; font-size: 11px; margin-left: 8px; font-weight: bold;">Z MINULA</span>` : ''}
+              <br>
+              <div style="color: #cbd5e1; margin-top: 6px;">Detail: ${escapeHtml(i.note || 'bez popisu')}</div>
+              ${i.group === 'visual' ? `<div style="color: #94a3b8; font-size: 13px; margin-top: 4px;">Typ: ${escapeHtml(i.type || '-')} | Vznik: ${escapeHtml(i.who || '-')}</div>` : ''}
+              ${i.photo ? `<div style="margin-top: 8px;"><img src="${i.photo}" style="max-width: 250px; max-height: 150px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);"></div>` : ''}
+            </div>
+          `).join('')}
+        </div>
+        ` : `
+        <div style="background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); padding: 15px; border-radius: 12px; margin-bottom: 20px; color: #86efac; font-weight: bold; font-size: 15px; text-align: center;">
+          Vozidlo je bez závad (Vše OK)
+        </div>
+        `}
+
+        <div style="margin-bottom: 20px; background: #1e293b; padding: 16px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+          <h2 style="margin: 0 0 15px 0; font-size: 18px; color: #fff;">Checklist</h2>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 13px; color: #cbd5e1;">
+            ${(rec.items||[]).map(i => `
+              <div style="display: flex; gap: 8px; align-items: flex-start;">
+                <span style="color: ${i.state==='ok'?'#22c55e':'#ef4444'}; font-weight: bold; font-size: 15px;">${i.state==='ok'?'✓':'✕'}</span>
+                <span>${escapeHtml(i.label)}</span>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px; background: #020617; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+          <div style="font-size: 15px; line-height: 1.6;">
+            <strong style="color: #94a3b8;">Potvrdil převzetí:</strong> <span style="color:${rec.confirmed?'#22c55e':'#ef4444'}; font-weight:bold;">${rec.confirmed ? 'ANO' : 'NE'}</span><br>
+            <strong style="color: #94a3b8;">Odevzdal v pořádku:</strong> <span style="color:${rec.handed?'#22c55e':'#ef4444'}; font-weight:bold;">${rec.handed ? 'ANO' : 'NE'}</span>
+          </div>
+          ${rec.signature ? `
+          <div style="text-align: center;">
+            <div style="color: #94a3b8; font-size: 12px; margin-bottom: 6px;">Podpis řidiče:</div>
+            <img src="${rec.signature}" style="height: 60px; max-width: 200px; object-fit: contain; background: rgba(255,255,255,0.9); padding: 8px; border-radius: 8px;">
+          </div>
+          ` : ''}
+        </div>
+      `;
+      return wrap;
+    }
+
+    async function generateImageBlob(rec) {
+      return new Promise((resolve, reject) => {
+        if (typeof html2canvas === 'undefined') {
+          return reject(new Error('Knihovna html2canvas se ještě nenačetla. Zkuste to za chvíli.'));
+        }
+        const el = createExportDOM(rec);
+        document.body.appendChild(el);
+        setTimeout(() => {
+          html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#0f172a' }).then(canvas => {
+            document.body.removeChild(el);
+            canvas.toBlob(blob => resolve(blob), 'image/jpeg', 0.85);
+          }).catch(err => {
+            document.body.removeChild(el);
+            reject(err);
+          });
+        }, 150);
+      });
+    }
+
+    async function exportImage() {
+      const history = getHistory();
+      if(history.length === 0) return showToast('Není co exportovat.');
+      const rec = history[0];
+
+      try {
+        showToast('Generuji report...', 'success');
+        const blob = await generateImageBlob(rec);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `Report_${rec.spz}_${new Date(rec.time).toISOString().split('T')[0]}.jpg`;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      } catch(e) {
+        showToast('Chyba při generování obrázku.');
+      }
+    }
+
+    async function shareImageChecklist() {
+      const history = getHistory();
+      if(history.length === 0) return showToast('Nejprve uložte směnu.');
+      const rec = history[0];
+
+      try {
+        showToast('Připravuji obrázek...', 'success');
+        const blob = await generateImageBlob(rec);
+        const file = new File([blob], `Report_${rec.spz}.jpg`, { type: 'image/jpeg' });
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+                title: `RB Taxi - ${rec.spz}`,
+                files: [file]
+            });
+        } else {
+            showToast('Zařízení nepodporuje přímé sdílení. Soubor se stáhne.', 'error');
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Report_${rec.spz}.jpg`;
+            a.click();
+        }
+      } catch(e) {
+        if (e.name !== 'AbortError') { 
+          showToast('Chyba při sdílení.');
+        }
+      }
+    }
+
+    function exportJSON(){
+      const history = getHistory();
+      if(history.length === 0) return showToast('Historie je prázdná.');
+      const blob = new Blob([JSON.stringify(history, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `rb_taxi_zaloha_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      showToast('Záloha stažena', 'success');
+    }
+
+    function importJSON(){ 
+      if(confirm('Import přepíše aktuální historii v zařízení. Pokračovat?')) {
+        byId('importFile').click(); 
+      }
+    }
+
+    function clearHistory() {
+      const history = getHistory();
+      if(history.length === 0) return showToast('Paměť je již prázdná.');
+      
+      const pass = prompt('Uvolní se paměť, zůstane 5 posledních směn.\nPro potvrzení napište: SMAZAT');
+      if(pass === 'SMAZAT') {
+        const kept = history.slice(0, 5);
+        if(setHistory(kept)) {
+            renderHistory();
+            showToast('Paměť uvolněna.', 'success');
+        }
+      } else if(pass !== null) {
+        showToast('Chybné heslo.');
+      }
+    }
+
+    function toggleManagerMode(){
+      const enabled = byId('managerMode').checked;
+      document.querySelectorAll('.item:not(#rideStatus)').forEach(i => {
+        if(!enabled){ i.classList.remove('managerHidden'); return; }
+        i.classList.toggle('managerHidden', (i.dataset.state || '') !== 'nok');
+      });
+    }
+
+    function resetForm(keepSpz=true){
+      clearErrors();
+      document.querySelectorAll('.item:not(#rideStatus)').forEach(i => {
+        i.dataset.state = '';
+        i.dataset.carried = 'false';
+        i.dataset.photo = '';
+        i.classList.remove('ok','nok','carry','managerHidden');
+        i.querySelectorAll('.state').forEach(b => b.classList.remove('active'));
+        const note = i.querySelector('.note'); if(note){ note.value = ''; note.classList.add('hidden'); }
+        const extras = i.querySelectorAll('.extraFields'); extras.forEach(el => el.classList.add('hidden'));
+        const t = i.querySelector('.issueType'); if(t) t.value = '';
+        const w = i.querySelector('.issueWho'); if(w) w.value = '';
+        const img = i.querySelector('.photoPreview'); if(img){ img.src=''; img.classList.add('hidden'); }
+      });
+      byId('taken').value = '';
+      byId('fuel').value = '';
+      byId('kmStart').value = '';
+      byId('kmEnd').value = '';
+      byId('confirmState').checked = false;
+      byId('handed').checked = false;
+      setRideStatus('');
+      byId('managerMode').checked = false;
+      clearSignature();
+      if(!keepSpz) {
+          byId('spz').selectedIndex = 0;
+      }
+      updateSummary();
+    }
+
+    function initSignature() {
+      sigCanvas = byId('signaturePad');
+      sigCtx = sigCanvas.getContext('2d');
+      hasSignature = false;
+      
+      const resize = () => {
+        const rect = sigCanvas.parentElement.getBoundingClientRect();
+        sigCanvas.width = rect.width;
+        sigCanvas.height = 140;
+        sigCtx.lineWidth = 3;
+        sigCtx.lineCap = 'round';
+        sigCtx.strokeStyle = '#facc15'; 
+      };
+      window.addEventListener('resize', resize);
+      resize();
+
+      const getPos = (e) => {
+        const rect = sigCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return { x: clientX - rect.left, y: clientY - rect.top };
+      };
+
+      const start = (e) => { e.preventDefault(); isDrawing = true; hasSignature = true; byId('signaturePad').parentElement.style.outline=''; const pos = getPos(e); sigCtx.beginPath(); sigCtx.moveTo(pos.x, pos.y); };
+      const move = (e) => { if(!isDrawing) return; e.preventDefault(); const pos = getPos(e); sigCtx.lineTo(pos.x, pos.y); sigCtx.stroke(); };
+      const end = () => { isDrawing = false; };
+
+      sigCanvas.addEventListener('mousedown', start);
+      sigCanvas.addEventListener('mousemove', move);
+      sigCanvas.addEventListener('mouseup', end);
+      sigCanvas.addEventListener('mouseout', end);
+      sigCanvas.addEventListener('touchstart', start, {passive: false});
+      sigCanvas.addEventListener('touchmove', move, {passive: false});
+      sigCanvas.addEventListener('touchend', end);
+      
+      byId('clearSigBtn').addEventListener('click', clearSignature);
+    }
+
+    function clearSignature() {
+      sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
+      hasSignature = false;
+    }
+
+    function bindStaticEvents(){
+      byId('spz').addEventListener('change', loadCarryover);
+      byId('rideOkBtn').addEventListener('click', () => setRideStatus('ok'));
+      byId('rideNokBtn').addEventListener('click', () => setRideStatus('nok'));
+      byId('saveBtn').addEventListener('click', save);
+      
+      byId('imgBtn').addEventListener('click', exportImage);
+      byId('shareBtn').addEventListener('click', shareImageChecklist);
+      
+      byId('exportBtn').addEventListener('click', exportJSON);
+      byId('importBtn').addEventListener('click', importJSON);
+      byId('clearHistoryBtn').addEventListener('click', clearHistory);
+      
+      byId('resetBtn').addEventListener('click', () => {
+          if(confirm('Vymazat vyplňovaný formulář?')) resetForm(false);
+      });
+      
+      byId('managerMode').addEventListener('change', toggleManagerMode);
+      
+      byId('photoPicker').addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        if(!file || !currentPhotoItem) return;
+        try{
+          showToast('Zpracovávám fotku...', 'success');
+          const dataUrl = await compressImage(file);
+          currentPhotoItem.dataset.photo = dataUrl;
+          const img = currentPhotoItem.querySelector('.photoPreview');
+          img.src = dataUrl;
+          img.classList.remove('hidden');
+        }catch(err){
+          showToast('Fotku se nepodařilo zpracovat.', 'error');
+        }
+      });
+      
+      byId('importFile').addEventListener('change', (e) => {
+        const file = e.target.files?.[0];
+        if(!file) return;
+        const fr = new FileReader();
+        fr.onload = () => {
+          try{
+            const data = JSON.parse(fr.result);
+            if(!Array.isArray(data)) throw new Error('Neplatný formát');
+            if(setHistory(data)){
+                renderHistory();
+                showToast('Import dat proběhl úspěšně.', 'success');
+            }
+          }catch(err){
+            showToast('Soubor je poškozený.', 'error');
+          }
+        };
+        fr.readAsText(file);
+        e.target.value = ''; 
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      initSpz();
+      initSignature();
+      
+      const lastDriver = localStorage.getItem('rb_last_driver');
+      if(lastDriver) byId('driver').value = lastDriver;
+
+      byId('today').textContent = todayString();
+      renderSections();
+      bindDynamicEvents();
+      bindStaticEvents();
+      renderHistory();
+      updateSummary();
+    });
+  </script>
+</body>
+</html>

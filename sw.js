@@ -1,0 +1,2 @@
+self.addEventListener('fetch', function(event) {});
+To je vše! Tím se prohlížeči potvrdí, že jde o plnohodnotnou "PWA" (Progressive Web App) aplikaci a umožní řidičům její uložení na domovskou obrazovku telefonu, kde poběží krásně přes celý displej. Tady v náhledu už chyba vyskakovat nebude.
