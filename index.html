@@ -82,6 +82,8 @@
       background: rgba(255,255,255,0.1); border: 1px solid var(--card-border); 
       font-size: 9px; font-weight: 700; vertical-align: middle; margin-left: 4px;
     }
+    #managerIcon { font-size: 11px; margin-left: 4px; }
+    body.manager-unlocked #managerIcon { display: inline-block !important; }
 
     /* Glassmorphism Cards - Extrémně kompaktní */
     .card {
@@ -292,6 +294,7 @@
     .manager-only { display: none !important; }
     body.manager-unlocked label.manager-only { display: flex !important; }
     body.manager-unlocked button.manager-only { display: flex !important; }
+    body.manager-unlocked .manager-only { display: inline-block !important; }
 
     @media print {
       body { background: #fff; color: #000; padding: 0;}
@@ -324,8 +327,8 @@
   <div class="app">
     <header class="topbar">
       <div>
-        <h1 class="gold-text" id="appTitle" style="cursor: pointer; user-select: none; -webkit-user-select: none;">RB Taxi</h1>
-        <div class="sub">Předávací protokol <span class="ver">v32.2</span></div>
+        <h1 class="gold-text" id="appTitle" style="cursor: pointer; user-select: none; -webkit-user-select: none;" title="Klikněte 5x pro manažerský režim">RB Taxi</h1>
+        <div class="sub">Předávací protokol <span class="ver">v33</span> <span id="managerIcon" class="hidden" title="Manažerský režim aktivní">🔓</span></div>
       </div>
       <div id="vehicleStatus" class="status ok">STAV VOZU: OK</div>
     </header>
@@ -430,7 +433,7 @@
         <button class="btn secondary manager-only" id="imgBtn">Uložit fotku</button>
         <button class="btn secondary manager-only" id="exportBtn">Záloha</button>
         <button class="btn secondary manager-only" id="importBtn">Obnova</button>
-        <button class="btn dangerBtn manager-only" id="resetBtn">Vyčistit</button>
+        <button class="btn dangerBtn manager-only" id="resetBtn">Vyčistit formulář</button>
       </div>
     </section>
 
@@ -439,7 +442,7 @@
         <h2>Historie zařízení</h2>
         <div style="display: flex; gap: 6px; align-items: center;">
           <div class="pill muted" id="historyCount">0</div>
-          <button class="btn dangerBtn smallBtn manager-only" id="clearHistoryBtn" title="Vymazat paměť">Promazat</button>
+          <button class="btn dangerBtn smallBtn manager-only" id="clearHistoryBtn" title="Vymazat celou paměť kromě posledních 5">Promazat</button>
         </div>
       </div>
       <div id="history"></div>
@@ -534,7 +537,10 @@
       if(unlockClicks >= 5) {
         document.body.classList.toggle('manager-unlocked');
         unlockClicks = 0;
-        showToast(document.body.classList.contains('manager-unlocked') ? '🔓 Manažerský režim odemčen' : '🔒 Manažerský režim uzamčen', 'success');
+        
+        const isUnlocked = document.body.classList.contains('manager-unlocked');
+        document.getElementById('managerIcon').classList.toggle('hidden', !isUnlocked);
+        showToast(isUnlocked ? '🔓 Manažerský režim odemčen' : '🔒 Manažerský režim uzamčen', 'success');
       }
     });
 
