@@ -260,7 +260,7 @@
     .detailList { display: grid; gap: 6px; margin-top: 10px; }
     .detailRow { padding: 10px; border-radius: 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--card-border); font-size: 13px;}
     .histPhotos { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
-    .histThumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);}
+    .histThumb { width: 60px; height: 60px; object-fit: cover; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); cursor: pointer;}
 
     /* Signature */
     .signatureWrap {
@@ -304,8 +304,13 @@
   
   <div id="toast-container"></div>
 
-  <!-- Custom Dialog Modal (Nahrazuje nefunkční window.confirm a window.prompt) -->
-  <div id="dialogOverlay" class="detailOverlay hidden" style="z-index: 10001;">
+  <!-- Bezpečný prohlížeč obrázků -->
+  <div id="imageViewerOverlay" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 10002; display: flex; align-items: center; justify-content: center; padding: 15px; cursor: zoom-out;">
+    <img id="imageViewerImg" src="" style="max-width: 100%; max-height: 100%; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+  </div>
+
+  <!-- Custom Dialog Modal -->
+  <div id="dialogOverlay" class="hidden" style="position: fixed; inset: 0; background: rgba(2, 6, 23, 0.85); display: flex; align-items: center; justify-content: center; padding: 10px; z-index: 10001; backdrop-filter: blur(5px);">
     <div class="detailCard" style="width: min(340px, 95%); padding: 24px 20px; text-align: center;">
       <div id="dialogMessage" style="font-size: 15px; font-weight: 600; margin-bottom: 20px; color: #fff; line-height: 1.4;"></div>
       <input type="text" id="dialogInput" class="hidden" style="margin-bottom: 20px; text-align: center; font-weight: bold; text-transform: uppercase;" placeholder="Napište text...">
@@ -320,7 +325,7 @@
     <header class="topbar">
       <div>
         <h1 class="gold-text" id="appTitle" style="cursor: pointer; user-select: none; -webkit-user-select: none;">RB Taxi</h1>
-        <div class="sub">Předávací protokol <span class="ver">v32</span></div>
+        <div class="sub">Předávací protokol <span class="ver">v32.2</span></div>
       </div>
       <div id="vehicleStatus" class="status ok">STAV VOZU: OK</div>
     </header>
@@ -442,7 +447,7 @@
   </div>
 
   <template id="historyDetailTemplate">
-    <div class="detailOverlay">
+    <div class="detailOverlay histOverlay">
       <div class="detailCard">
         <div class="cardHead" style="margin-bottom: 16px;">
           <h2 style="font-size: 18px;">Detail převzetí vozu</h2>
@@ -466,7 +471,19 @@
       });
     }
 
-    // --- Vlastní dialogová okna (Nahrazují zablokované confirm/prompt) ---
+    // --- Interní prohlížeč obrázků (Místo riskantního window.open) ---
+    function openImage(src) {
+        const overlay = document.getElementById('imageViewerOverlay');
+        const img = document.getElementById('imageViewerImg');
+        img.src = src;
+        overlay.classList.remove('hidden');
+    }
+    
+    document.getElementById('imageViewerOverlay').addEventListener('click', function() {
+        this.classList.add('hidden');
+    });
+
+    // --- Vlastní dialogová okna ---
     function showDialog(message, type, callback) {
       const overlay = document.getElementById('dialogOverlay');
       const msgEl = document.getElementById('dialogMessage');
@@ -477,19 +494,24 @@
       msgEl.innerHTML = message;
       overlay.classList.remove('hidden');
 
-      if (type === 'prompt') {
-          inputEl.classList.remove('hidden');
-          inputEl.value = '';
-          setTimeout(() => inputEl.focus(), 100);
-      } else {
-          inputEl.classList.add('hidden');
-      }
-
       // Odstranění starých event listenerů klonováním tlačítek
       const newConfirm = btnConfirm.cloneNode(true);
       const newCancel = btnCancel.cloneNode(true);
       btnConfirm.replaceWith(newConfirm);
       btnCancel.replaceWith(newCancel);
+
+      if (type === 'prompt') {
+          inputEl.classList.remove('hidden');
+          inputEl.value = '';
+          setTimeout(() => inputEl.focus(), 100);
+          
+          inputEl.onkeydown = (e) => {
+              if (e.key === 'Enter') newConfirm.click();
+          };
+      } else {
+          inputEl.classList.add('hidden');
+          inputEl.onkeydown = null;
+      }
 
       newCancel.addEventListener('click', () => {
           overlay.classList.add('hidden');
@@ -550,7 +572,6 @@
 
     let currentPhotoItem = null;
     let sigCanvas, sigCtx, isDrawing = false, hasSignature = false;
-    let isModalOpen = false;
 
     function byId(id){ return document.getElementById(id); }
     function escapeHtml(s=''){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -716,7 +737,7 @@
     }
 
     function getItems(){
-      return [...document.querySelectorAll('.item')].map(i => ({
+      return [...document.querySelectorAll('.app .item')].map(i => ({
         id: i.dataset.id,
         group: i.dataset.group,
         label: i.dataset.label,
@@ -737,13 +758,13 @@
       if(!byId('driver').value.trim()) return showError(byId('driver'), 'Zadejte své jméno.');
       if(!byId('taken').value.trim()) return showError(byId('taken'), 'Od koho přebíráte?');
       
-      for(const i of document.querySelectorAll('.item')){
+      for(const i of document.querySelectorAll('.app .item')){
         if(!i.dataset.state) return showError(i, 'Chybí označení ✓ nebo ✕ u kontroly vozidla.');
       }
 
       for(const i of items){
         if(i.state === 'nok'){
-          const itemNode = document.querySelector(`.item[data-id="${i.id}"]`);
+          const itemNode = document.querySelector(`.app .item[data-id="${i.id}"]`);
           if((i.group === 'tech' || i.group === 'visual' || i.id === 'docs') && !i.note){
             return showError(itemNode.querySelector('.note'), `Doplňte detail u: ${i.label}`);
           }
@@ -755,6 +776,8 @@
       }
 
       if(!byId('fuel').value) return showError(byId('fuel'), 'Vyberte stav paliva.');
+      
+      if(!byId('km').value.trim()) return showError(byId('km'), 'Zadejte stav tachometru.');
       
       if(!byId('confirmState').checked) return showError(byId('confirmState').parentElement, 'Potvrďte kontrolu vozu zaškrtnutím políčka.');
       if(!hasSignature) return showError(byId('signaturePad').parentElement, 'Před uložením se podepište.');
@@ -822,7 +845,7 @@
       
       const issues = JSON.parse(localStorage.getItem('carry_' + spz) || '[]');
 
-      document.querySelectorAll('.item').forEach(i => {
+      document.querySelectorAll('.app .item').forEach(i => {
         i.dataset.state = '';
         i.dataset.carried = 'false';
         i.dataset.photo = '';
@@ -836,7 +859,7 @@
       });
 
       issues.forEach(found => {
-        const item = document.querySelector('.item[data-id="' + found.id + '"]');
+        const item = document.querySelector(`.app .item[data-id="${found.id}"]`);
         if(item){
           item.dataset.state = 'nok';
           item.dataset.carried = 'true';
@@ -936,7 +959,8 @@
 
       const tpl = byId('historyDetailTemplate');
       const node = tpl.content.cloneNode(true);
-      const body = node.querySelector('#detailBody');
+      const activeOverlay = node.querySelector('.histOverlay');
+      const body = activeOverlay.querySelector('#detailBody');
 
       const itemsHtml = (rec.items||[]).map(i => `
         <div class="detailRow" style="border-left: 3px solid ${i.state==='ok'?'var(--green)':'var(--red)'}">
@@ -945,7 +969,7 @@
           ${i.carried ? ' <span class="tag" style="background:var(--orange); color:#000; float:right;">Z MINULA</span>' : ''}
           ${i.note ? `<div class="histMeta" style="color:#cbd5e1; margin-top:4px;">${escapeHtml(i.note)}</div>` : ''}
           ${i.group === 'visual' && i.state === 'nok' ? `<div class="histMeta">${i.type ? 'Typ: ' + escapeHtml(i.type) : ''}${i.who ? ' • Vznik: ' + escapeHtml(i.who) : ''}</div>` : ''}
-          ${i.photo ? `<div class="histPhotos"><img class="histThumb" src="${i.photo}" onclick="window.open('${i.photo}')"></div>` : ''}
+          ${i.photo ? `<div class="histPhotos"><img class="histThumb" src="${i.photo}" onclick="openImage('${i.photo}')"></div>` : ''}
         </div>
       `).join('');
 
@@ -979,37 +1003,32 @@
         </div>
       `;
 
-      document.body.appendChild(node);
+      document.body.appendChild(activeOverlay);
       
-      isModalOpen = true;
-      history.pushState({ modalOpen: true }, '');
+      // Bezpečné zavírání okna beze změny URL/Historie prohlížeče
+      function closeDetail() {
+          activeOverlay.remove();
+      }
 
-      document.getElementById('closeDetailBtn').addEventListener('click', () => { history.back(); });
-      document.querySelector('.detailOverlay').addEventListener('click', (e) => {
-        if(e.target.classList.contains('detailOverlay')) history.back();
+      activeOverlay.querySelector('#closeDetailBtn').addEventListener('click', closeDetail);
+      
+      activeOverlay.addEventListener('click', (e) => {
+        if(e.target === activeOverlay) closeDetail();
       });
 
-      // ZDE je použito nové vlastní okno pro potvrzení
-      document.getElementById('deleteRecordBtn').addEventListener('click', () => {
+      activeOverlay.querySelector('#deleteRecordBtn').addEventListener('click', () => {
           showDialog('Opravdu chcete tento záznam trvale smazat?', 'confirm', (res) => {
               if (res) {
                   let hist = getHistory();
                   hist = hist.filter(x => x.id !== id);
                   setHistory(hist);
                   renderHistory();
-                  history.back();
+                  closeDetail();
                   showToast('Záznam smazán.', 'success');
               }
           });
       });
     }
-
-    window.addEventListener('popstate', () => {
-       if(isModalOpen) {
-           document.querySelector('.detailOverlay')?.remove();
-           isModalOpen = false;
-       }
-    });
 
     // --- FUNKCE PRO GENEROVÁNÍ KOMPAKTNÍHO OBRÁZKU SMĚNY ---
     function createExportDOM(rec) {
@@ -1199,7 +1218,7 @@
 
     function toggleManagerMode(){
       const enabled = byId('managerMode').checked;
-      document.querySelectorAll('.item').forEach(i => {
+      document.querySelectorAll('.app .item').forEach(i => {
         if(!enabled){ i.classList.remove('managerHidden'); return; }
         i.classList.toggle('managerHidden', (i.dataset.state || '') !== 'nok');
       });
@@ -1207,7 +1226,7 @@
 
     function resetForm(keepSpz=true){
       clearErrors();
-      document.querySelectorAll('.item').forEach(i => {
+      document.querySelectorAll('.app .item').forEach(i => {
         i.dataset.state = '';
         i.dataset.carried = 'false';
         i.dataset.photo = '';
